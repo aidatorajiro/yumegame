@@ -1,2 +1,4 @@
 MeshroomCache/
 !MeshroomCache/Texturing
+.stack-work
+venv
