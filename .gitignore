@@ -1,0 +1,8 @@
+*.mg
+*.blend
+*.blend*
+MeshroomCache
+cache_fluid_*
+venv
+original_image_data
+backup.py
