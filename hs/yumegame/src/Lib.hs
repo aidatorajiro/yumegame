@@ -1,4 +1,6 @@
-module Lib ( someFunc ) where
+{-# LANGUAGE OverloadedStrings #-}
+
+module Lib ( startServer ) where
 import Control.Concurrent (forkFinally)
 import qualified Control.Exception as E
 import Control.Monad (unless, forever, void)
@@ -6,14 +8,21 @@ import qualified Data.ByteString as S
 import Network.Socket
 import Network.Socket.ByteString (recv, sendAll)
 
-someFunc :: IO ()
-someFunc = runTCPServer Nothing "3000" talk
+startServer :: IO ()
+startServer = runTCPServer (Just "0.0.0.0") "3170" talk
   where
     talk s = do
-        msg <- recv s 1024
-        unless (S.null msg) $ do
-          sendAll s msg
-          talk s
+      let n = 1024
+      let msg = do
+            x <- recv s n
+            if S.length x == n then do
+              y <- msg
+              return (x <> y)
+            else return x
+      msg' <- msg
+      unless (S.null msg') $ do
+        sendAll s "OK"
+        talk s
 
 -- from the "network-run" package.
 runTCPServer :: Maybe HostName -> ServiceName -> (Socket -> IO a) -> IO a

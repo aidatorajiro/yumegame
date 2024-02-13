@@ -1,0 +1,1 @@
+BUILD_METHOD=ghcup,stack python py/build.py watch

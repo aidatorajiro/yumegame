@@ -1,6 +1,6 @@
 module Main (main) where
 
-import Lib
+import Lib (startServer)
 
 main :: IO ()
-main = someFunc
+main = startServer
