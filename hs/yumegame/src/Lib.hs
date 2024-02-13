@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Lib ( startServer ) where
-import Control.Concurrent (forkFinally)
+import Control.Concurrent (forkFinally, threadDelay)
 import qualified Control.Exception as E
 import Control.Monad (unless, forever, void)
 import qualified Data.ByteString as S
@@ -17,9 +17,12 @@ createMessage messageType messageBytes = S.toStrict (
     <> messageBytes
 
 startServer :: IO ()
-startServer = runTCPServer (Just "0.0.0.0") "3170" talk
+startServer = runTCPServer (Just "127.0.0.1") "3170" talk
   where
     talk s = do
+      putStrLn "Connected"
+      talkLoop s
+    talkLoop s = do
       let n = 1024
       let msg = do
             x <- recv s n
@@ -27,10 +30,11 @@ startServer = runTCPServer (Just "0.0.0.0") "3170" talk
               y <- msg
               return (x <> y)
             else return x
-      msg' <- msg
-      unless (S.null msg') $ do
-        sendAll s (createMessage 0 "helloaaa")
-        talk s
+      -- msg' <- msg
+      sendAll s (createMessage 0 "p")
+      sendAll s (createMessage 1 "print(12345)")
+      threadDelay 1000000
+      talkLoop s
 
 -- from the "network-run" package.
 runTCPServer :: Maybe HostName -> ServiceName -> (Socket -> IO a) -> IO a

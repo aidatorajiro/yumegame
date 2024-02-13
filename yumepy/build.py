@@ -7,7 +7,7 @@ import subprocess
 from util import calculate_env
 import sys
 
-modified_flag = False
+modified_flag = True
 current_proc = None
 
 base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
