@@ -7,6 +7,14 @@ import Control.Monad (unless, forever, void)
 import qualified Data.ByteString as S
 import Network.Socket
 import Network.Socket.ByteString (recv, sendAll)
+import Data.Int (Int64)
+import qualified Data.Binary as DB
+
+createMessage :: Int64 -> S.ByteString -> S.ByteString
+createMessage messageType messageBytes = S.toStrict (
+  DB.encode messageType <>
+  DB.encode (fromIntegral $ S.length messageBytes :: Int64))
+    <> messageBytes
 
 startServer :: IO ()
 startServer = runTCPServer (Just "0.0.0.0") "3170" talk
@@ -21,7 +29,7 @@ startServer = runTCPServer (Just "0.0.0.0") "3170" talk
             else return x
       msg' <- msg
       unless (S.null msg') $ do
-        sendAll s "OK"
+        sendAll s (createMessage 0 "helloaaa")
         talk s
 
 -- from the "network-run" package.

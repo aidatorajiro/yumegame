@@ -23,4 +23,21 @@ if not os.path.exists(venv_path):
     subprocess.run([venv_pip_path, "install", "-r", os.path.join(proj_path, "requirements.txt")], capture_output=True)
 
 # initialize module
-sys.path.append(package_path)
+if not package_path in sys.path:
+    sys.path.append(package_path)
+
+"""
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
+import logging
+
+logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s - %(message)s',
+                        datefmt='%Y-%m-%d %H:%M:%S')
+
+class MyEventHandler(FileSystemEventHandler):
+    def on_modified(self, event) -> None:
+        if event.src_path.endswith(".py"):
+            pass
+"""
+
