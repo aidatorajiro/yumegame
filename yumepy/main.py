@@ -29,19 +29,7 @@ if not os.path.exists(venv_path):
 if not package_path in sys.path:
     sys.path.append(package_path)
 
-"""
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
-
-
-class MyEventHandler(FileSystemEventHandler):
-    def on_modified(self, event) -> None:
-        if event.src_path.endswith(".py"):
-            pass
-"""
-
 def client_inner():
-    count = 0
     while True:
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -75,10 +63,7 @@ def client_inner():
                         raise ValueError("Too large input (data length: %s)" % datalen)
         except socket.error:
             print("connect lost")
-            count += 1
             if ev_ask_terminate.is_set():
-                return
-            if count > 60:
                 return
             time.sleep(1)
 
@@ -108,7 +93,4 @@ def start():
     client_thread = Thread(target=client_inner, args=[])
     client_thread.start()
 
-def start_with_reload():
-    with open(os.path.join(proj_path, "yumepy", "main.py")) as f:
-        exec(f.read())
-    start()
+start()

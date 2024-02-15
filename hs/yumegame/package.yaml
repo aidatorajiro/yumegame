@@ -25,6 +25,8 @@ dependencies:
 - bytestring
 - Yampa
 - binary
+- lens
+- clock
 
 ghc-options:
 - -Wall
