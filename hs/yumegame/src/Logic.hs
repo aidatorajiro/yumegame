@@ -1,0 +1,21 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE Arrows #-}
+{-# OPTIONS_GHC -Wno-unused-matches #-}
+{-# OPTIONS_GHC -Wno-unused-top-binds #-}
+
+module Logic (Outerworld(Outerworld), initialOuterworld, Innerworld(Innerworld), yaruzoo, scriptReturns, sdlEvents, script, timestamp) where
+import qualified SDL
+import qualified Data.ByteString as S
+import qualified Data.String as S
+import FRP.Yampa
+
+data Outerworld = Outerworld { scriptReturns :: [(Int, S.ByteString)], sdlEvents :: [SDL.Event] }
+initialOuterworld :: Outerworld
+initialOuterworld = Outerworld { scriptReturns = [], sdlEvents = [] }
+
+data Innerworld = Innerworld { script :: [S.ByteString], timestamp :: Double }
+
+yaruzoo :: SF Outerworld Innerworld
+yaruzoo = proc x -> do
+  t <- time -< ()
+  returnA -< Innerworld { script = ["print(" <> S.fromString (show t) <> ")"], timestamp = 0 }

@@ -1,10 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE Arrows #-}
+{-# OPTIONS_GHC -Wno-unused-matches #-}
+{-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
 module Lib ( startServer ) where
 import Control.Concurrent (forkFinally, threadDelay, forkIO)
 import qualified Control.Exception as E
 import Control.Monad ( forever, void, unless, when )
 import qualified Data.ByteString as S
+import qualified Data.String as S
 import Network.Socket (Socket, HostName, ServiceName, AddrInfo (..), withSocketsDo, defaultHints, AddrInfoFlag (..), SocketType(..), close, getAddrInfo, socket, setSocketOption, SocketOption (..), withFdSocket, setCloseOnExecIfNeeded, bind, listen, accept, gracefulClose)
 import Network.Socket.ByteString (recv, sendAll)
 import Data.Int (Int64)
@@ -14,20 +18,13 @@ import Data.IORef (newIORef, readIORef, writeIORef)
 import System.Clock (getTime, Clock (Monotonic), toNanoSecs)
 import qualified Data.Vector as Vector
 import qualified SDL
+import Logic
 
 createMessage :: Int64 -> S.ByteString -> S.ByteString
 createMessage messageType messageBytes = S.toStrict (
   DB.encode messageType <>
   DB.encode (fromIntegral $ S.length messageBytes :: Int64))
     <> messageBytes
-
-data Outerworld = Outerworld { scriptReturns :: [(Int, S.ByteString)], sdlEvents :: [SDL.Event] }
-initialOuterworld :: Outerworld
-initialOuterworld = Outerworld { scriptReturns = [], sdlEvents = [] }
-
-data Innerworld = Innerworld { script :: [S.ByteString], timestamp :: Double }
-initialInnerworld :: Innerworld
-initialInnerworld = Innerworld { script = [], timestamp = 0 }
 
 globalJoystickIndex :: Int
 globalJoystickIndex = 0
@@ -45,9 +42,6 @@ getMsg s n = do
       y <- getMsg s n
       return (x <> y)
     else return x
-
-yaruzoo :: SF Outerworld Innerworld
-yaruzoo = constant initialInnerworld
 
 startServer :: IO ()
 startServer = do
@@ -78,7 +72,6 @@ startServer = do
               writeIORef timeRef =<< getTime Monotonic
 
               evs <- SDL.pollEvents
-              -- print evs
 
               when (any (\x -> SDL.eventPayload x == evDeviceAdd) evs) reloadJoysticks
 
