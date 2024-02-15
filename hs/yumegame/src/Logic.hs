@@ -17,5 +17,10 @@ data Innerworld = Innerworld { script :: [S.ByteString], timestamp :: Double }
 
 yaruzoo :: SF Outerworld Innerworld
 yaruzoo = proc x -> do
+  let sdlEvs = sdlEvents x
+  ev <- repeatedly 1 () -< ()
   t <- time -< ()
-  returnA -< Innerworld { script = ["print(" <> S.fromString (show t) <> ")"], timestamp = 0 }
+  let scr = case ev of 
+        Event _ -> ["print(" <> S.fromString (show t) <> ")"]
+        NoEvent -> []
+  returnA -< Innerworld { script = scr, timestamp = 0 }
