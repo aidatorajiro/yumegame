@@ -45,9 +45,12 @@ def watch():
                 modified_flag = False
                 if current_proc is not None:
                     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                        print("Sending shutdown signal")
-                        s.connect(("127.0.0.1", 3171))
-                        s.send(b"shutdown")
+                        logging.info("Sending shutdown signal")
+                        try:
+                            s.connect(("127.0.0.1", 3171))
+                            s.send(b"shutdown")
+                        except socket.error as e:
+                            logging.info("Shutdown signal send failed: %s", e)
                     current_proc.wait()
                 logging.info("Running build script...")
                 retcode = build().wait()

@@ -29,6 +29,7 @@ dependencies:
 - clock
 - sdl2
 - stm
+- vector
 
 ghc-options:
 - -Wall

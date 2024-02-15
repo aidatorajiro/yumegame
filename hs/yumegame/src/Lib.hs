@@ -3,18 +3,17 @@
 module Lib ( startServer ) where
 import Control.Concurrent (forkFinally, threadDelay, forkIO)
 import qualified Control.Exception as E
-import Control.Monad (forever, void, unless)
+import Control.Monad ( forever, void, unless, when )
 import qualified Data.ByteString as S
 import Network.Socket (Socket, HostName, ServiceName, AddrInfo (..), withSocketsDo, defaultHints, AddrInfoFlag (..), SocketType(..), close, getAddrInfo, socket, setSocketOption, SocketOption (..), withFdSocket, setCloseOnExecIfNeeded, bind, listen, accept, gracefulClose)
 import Network.Socket.ByteString (recv, sendAll)
 import Data.Int (Int64)
 import qualified Data.Binary as DB
 import FRP.Yampa
-import Data.IORef (newIORef, readIORef, writeIORef, IORef)
+import Data.IORef (newIORef, readIORef, writeIORef)
 import System.Clock (getTime, Clock (Monotonic), toNanoSecs)
-import qualified SDL.Init as SDL
-import qualified SDL.Input.Joystick as SDL
-import Control.Monad (when)
+import qualified Data.Vector as Vector
+import qualified SDL
 
 createMessage :: Int64 -> S.ByteString -> S.ByteString
 createMessage messageType messageBytes = S.toStrict (
@@ -22,12 +21,22 @@ createMessage messageType messageBytes = S.toStrict (
   DB.encode (fromIntegral $ S.length messageBytes :: Int64))
     <> messageBytes
 
-data Outerworld = Outerworld { gamepad :: Maybe (Double, Double, Double, Double), scriptReturns :: [(Int, S.ByteString)] }
+data Outerworld = Outerworld { scriptReturns :: [(Int, S.ByteString)], sdlEvents :: [SDL.Event] }
+initialOuterworld :: Outerworld
+initialOuterworld = Outerworld { scriptReturns = [], sdlEvents = [] }
 
-initialOuterworld = Outerworld { gamepad = Nothing, scriptReturns = [] }
+data Innerworld = Innerworld { script :: [S.ByteString], timestamp :: Double }
+initialInnerworld :: Innerworld
+initialInnerworld = Innerworld { script = [], timestamp = 0 }
 
-data Innerworld = Innerworld { script :: [S.ByteString] }
-initialInnerworld = Innerworld { script = ["print(123499956)"] }
+globalJoystickIndex :: Int
+globalJoystickIndex = 0
+
+evDeviceAdd :: SDL.EventPayload
+evDeviceAdd = SDL.JoyDeviceEvent(SDL.JoyDeviceEventData SDL.JoyDeviceAdded (fromIntegral globalJoystickIndex))
+
+evDeviceRemoved :: SDL.EventPayload
+evDeviceRemoved = SDL.JoyDeviceEvent(SDL.JoyDeviceEventData SDL.JoyDeviceRemoved (fromIntegral globalJoystickIndex))
 
 getMsg :: Socket -> Int -> IO S.ByteString
 getMsg s n = do
@@ -36,6 +45,9 @@ getMsg s n = do
       y <- getMsg s n
       return (x <> y)
     else return x
+
+yaruzoo :: SF Outerworld Innerworld
+yaruzoo = constant initialInnerworld
 
 startServer :: IO ()
 startServer = do
@@ -47,7 +59,15 @@ startServer = do
           writeIORef shutdownRef True
       ))
 
-  SDL.initialize [SDL.InitJoystick]
+  SDL.initializeAll
+
+  joystickRef <- newIORef Nothing
+
+  let reloadJoysticks = do
+        joysticks <- SDL.availableJoysticks
+        unless (null joysticks) $ do
+          j <- SDL.openJoystick ((Vector.!) joysticks globalJoystickIndex)
+          writeIORef joystickRef (Just j)
 
   let talk s = do
         timeRef <- newIORef =<< getTime Monotonic
@@ -56,17 +76,22 @@ startServer = do
             (\can_block -> do
               timeDiff <- liftA2 (-) (getTime Monotonic) (readIORef timeRef)
               writeIORef timeRef =<< getTime Monotonic
-              print =<< SDL.availableJoysticks
+
+              evs <- SDL.pollEvents
+              -- print evs
+
+              when (any (\x -> SDL.eventPayload x == evDeviceAdd) evs) reloadJoysticks
+
               return (fromIntegral (toNanoSecs timeDiff) / 1000000000, Just (
                 Outerworld {
-                  gamepad = Nothing,
-                  scriptReturns = []
+                  scriptReturns = [],
+                  sdlEvents = evs
                 })))
             (\is_changed inner -> do
               mapM_ (sendAll s . createMessage 1) (script inner)
-              threadDelay 1000000
+              threadDelay 16666
               return False)
-            (constant initialInnerworld)
+            yaruzoo
         return ()
 
   _ <- forkIO (runTCPServer (Just "127.0.0.1") "3170" talk)
@@ -75,7 +100,7 @@ startServer = do
         threadDelay 1000000
         shutdown <- readIORef shutdownRef
         unless shutdown mainLoop
-  
+
   mainLoop
 
   SDL.quit
