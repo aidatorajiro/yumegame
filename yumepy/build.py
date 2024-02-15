@@ -1,3 +1,4 @@
+import socket
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import time
@@ -43,7 +44,11 @@ def watch():
             if modified_flag:
                 modified_flag = False
                 if current_proc is not None:
-                    current_proc.terminate()
+                    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                        print("Sending shutdown signal")
+                        s.connect(("127.0.0.1", 3171))
+                        s.send(b"shutdown")
+                    current_proc.wait()
                 logging.info("Running build script...")
                 retcode = build().wait()
                 if retcode == 0:

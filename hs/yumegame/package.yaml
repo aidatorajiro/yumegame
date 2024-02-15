@@ -27,6 +27,8 @@ dependencies:
 - binary
 - lens
 - clock
+- sdl2
+- stm
 
 ghc-options:
 - -Wall
