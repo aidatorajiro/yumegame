@@ -27,6 +27,7 @@ library
   exposed-modules:
       Lib
       Logic
+      TH
   other-modules:
       Paths_yumegame
   autogen-modules:
@@ -44,6 +45,7 @@ library
     , network
     , sdl2
     , stm
+    , template-haskell
     , vector
   default-language: Haskell2010
 
@@ -66,6 +68,7 @@ executable yumegame-exe
     , network
     , sdl2
     , stm
+    , template-haskell
     , vector
     , yumegame
   default-language: Haskell2010
@@ -90,6 +93,7 @@ test-suite yumegame-test
     , network
     , sdl2
     , stm
+    , template-haskell
     , vector
     , yumegame
   default-language: Haskell2010

@@ -30,6 +30,7 @@ dependencies:
 - sdl2
 - stm
 - vector
+- template-haskell
 
 ghc-options:
 - -Wall

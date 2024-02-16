@@ -8,7 +8,8 @@ import subprocess
 from util import calculate_env
 import sys
 
-modified_flag = True
+modified_flag = 1
+modified_flag_up = 0
 current_proc = None
 
 base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -19,6 +20,7 @@ os.chdir(hs_path)
 def watch():
     global current_proc
     global modified_flag
+    global modified_flag_up
 
     logging.basicConfig(level=logging.INFO,
                         format='%(asctime)s - %(message)s',
@@ -30,7 +32,7 @@ def watch():
 
             if event.src_path.endswith(".hs"):
                 logging.info("Modified: %s" % event.src_path)
-                modified_flag = True
+                modified_flag += 1
 
     logging.info(f'start watching directory {hs_path!r}')
     event_handler = MyEventHandler()
@@ -41,8 +43,8 @@ def watch():
     try:
         while True:
             time.sleep(1)
-            if modified_flag:
-                modified_flag = False
+            if modified_flag > modified_flag_up:
+                modified_flag_up = modified_flag
                 if current_proc is not None:
                     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                         logging.info("Sending shutdown signal")
