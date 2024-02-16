@@ -45,6 +45,7 @@ library
     , network
     , sdl2
     , stm
+    , string-qq
     , template-haskell
     , vector
   default-language: Haskell2010
@@ -68,6 +69,7 @@ executable yumegame-exe
     , network
     , sdl2
     , stm
+    , string-qq
     , template-haskell
     , vector
     , yumegame
@@ -93,6 +95,7 @@ test-suite yumegame-test
     , network
     , sdl2
     , stm
+    , string-qq
     , template-haskell
     , vector
     , yumegame

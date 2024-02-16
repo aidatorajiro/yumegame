@@ -7,6 +7,13 @@ import socket
 import struct
 import time
 
+def get_3d_area():
+    for a in bpy.context.screen.areas:
+        if a.spaces.active and a.spaces.active.type == 'VIEW_3D':
+            return a.spaces.active.region_3d
+
+the_3d_area = get_3d_area()
+
 # init project info
 proj_path = bpy.path.abspath("//")
 hs_path = os.path.join(proj_path, "hs", "yumegame")
@@ -29,9 +36,6 @@ if not os.path.exists(venv_path):
 # initialize module
 if not package_path in sys.path:
     sys.path.append(package_path)
-
-if not hs_path in sys.path:
-    sys.path.append(hs_path)
 
 def client_inner():
     while True:
@@ -57,7 +61,7 @@ def client_inner():
                         if len(data) == datalen:
                             try:
                                 if datatype == 1:
-                                    exec(data.decode())
+                                    exec(data.decode(), globals())
                             except Exception as e:
                                 print("Error occured during eval\n[Received Script]\n%s\n[Error Message]\n%s" % (data, e))
                         else:

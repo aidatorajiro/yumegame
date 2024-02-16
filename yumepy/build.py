@@ -30,7 +30,7 @@ def watch():
         def on_modified(self, event) -> None:
             global modified_flag
 
-            if event.src_path.endswith(".hs") or event.src_path.endswith(".py"):
+            if event.src_path.endswith(".hs"):
                 logging.info("Modified: %s" % event.src_path)
                 modified_flag += 1
 
