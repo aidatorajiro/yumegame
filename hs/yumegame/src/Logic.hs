@@ -71,7 +71,9 @@ yaruzoo = proc x -> do
   axis10 <- lastOfList -< mapMaybe (getJoyAxisValueFor 1 0) sdlEvs
   axis11 <- lastOfList -< mapMaybe (getJoyAxisValueFor 1 1) sdlEvs
 
-  let py_move_view = fromString . (\d -> "move_view(" <> show (fromIntegral d / 15000000 :: Double) <> ", 0, 0)") . absThreshold 1000 <$> axis00
+  let py_move_view = fromString . (\(d0, d1) -> 
+        "move_view(" <> show (fromIntegral d0 / 15000000 :: Double) <> ", 0, " <> show (fromIntegral d1 / 15000000 :: Double) <> ")") 
+        <$> joinE (absThreshold 1000 <$> axis00) (absThreshold 1000 <$> axis01)
 
   -- output results
   py_reload <- now reloadScript -< ()
