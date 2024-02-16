@@ -9,17 +9,14 @@ module Logic (
       initialOuterworld,
       Innerworld(Innerworld),
       yaruzoo,
-      _scriptReturns,
       scriptReturns,
-      _sdlEvents,
       sdlEvents,
-      _script,
       script,
-      _timestamp,
+      pingMessage,
       timestamp) where
+
 import qualified SDL
 import qualified Data.ByteString as S
-import qualified Data.String as S
 import FRP.Yampa
 import Control.Lens.TH
 import Control.Lens
@@ -30,25 +27,31 @@ $(makeLenses ''Outerworld)
 initialOuterworld :: Outerworld
 initialOuterworld = Outerworld { _scriptReturns = [], _sdlEvents = [] }
 
-data Innerworld = Innerworld { _script :: [S.ByteString], _timestamp :: Double }
+data Innerworld = Innerworld { _script :: [S.ByteString], _timestamp :: Double, _pingMessage :: [S.ByteString] }
 $(makeLenses ''Innerworld)
 
 lastOfList :: SF [x] (Event x)
 lastOfList = proc xs -> do
-      hold NoEvent -< (if null xs then NoEvent else Event (Event (last xs)))
+  hold NoEvent -< (if null xs then NoEvent else Event (Event (last xs)))
 
 isJoyAxisEvent :: SDL.Event -> Bool
 isJoyAxisEvent e = case SDL.eventPayload e of
-      SDL.JoyAxisEvent _ -> True
-      _ -> False
+  SDL.JoyAxisEvent _ -> True
+  _ -> False
 
 yaruzoo :: SF Outerworld Innerworld
 yaruzoo = proc x -> do
+  t <- time -< ()
   let sdlEvs = x ^. sdlEvents
   lastControllerEv <- lastOfList -< filter isJoyAxisEvent sdlEvs
-  everySecond <- repeatedly 1 () -< ()
-  t <- time -< ()
-  let scr = case everySecond of 
-        Event _ -> ["print('" <> S.fromString (show lastControllerEv) <> "')"]
-        NoEvent -> []
-  returnA -< Innerworld { _script = scr, _timestamp = 0 }
+  py_reload <- now "print('Reloading hsfunctions module...')\nimport importlib\nimport hsfunctions\nimportlib.reload(hsfunctions)" -< ()
+  let scr = catEvents [py_reload]
+  ping <- repeatedly 1 () -< ()
+  returnA -< Innerworld {
+    _script = case scr of
+      NoEvent -> []
+      Event xs -> xs,
+    _timestamp = t,
+    _pingMessage = case ping of
+      NoEvent -> []
+      Event () -> ["p"] }

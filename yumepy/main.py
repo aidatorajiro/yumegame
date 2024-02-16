@@ -9,13 +9,14 @@ import time
 
 # init project info
 proj_path = bpy.path.abspath("//")
+hs_path = os.path.join(proj_path, "hs", "yumegame")
 
 # init venv
 venv_path = os.path.join(proj_path, "venv")
 
 # init project info
 package_path = glob.glob(os.path.join(venv_path, "lib", "python*", "site-packages"))[0]
-orig_python_path = "/usr/bin/python"
+orig_python_path = sys.executable
 venv_python_path = os.path.join(venv_path, "bin", "python")
 venv_pip_path = os.path.join(venv_path, "bin", "pip")
 
@@ -29,13 +30,15 @@ if not os.path.exists(venv_path):
 if not package_path in sys.path:
     sys.path.append(package_path)
 
+if not hs_path in sys.path:
+    sys.path.append(hs_path)
+
 def client_inner():
     while True:
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 print("(re-)connecting to the server")
                 s.connect(("127.0.0.1", 3170))
-                count = 0
                 while True:
                     if ev_ask_terminate.is_set():
                         return

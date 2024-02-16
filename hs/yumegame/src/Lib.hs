@@ -73,13 +73,13 @@ startServer = do
               writeIORef timeRef =<< getTime Monotonic
 
               evs <- SDL.pollEvents
-
               when (any (\x -> SDL.eventPayload x == evDeviceAdd) evs) reloadJoysticks
 
               return (fromIntegral (toNanoSecs timeDiff) / 1000000000,
                 Just (initialOuterworld & sdlEvents .~ evs)))
             (\is_changed inner -> do
               mapM_ (sendAll s . createMessage 1) (inner ^. script)
+              mapM_ (sendAll s . createMessage 0) (inner ^. pingMessage)
               threadDelay 16666
               return False)
             yaruzoo
