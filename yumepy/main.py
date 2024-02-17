@@ -8,13 +8,6 @@ import struct
 import time
 from threading import Event
 
-def get_3d_area():
-    for a in bpy.context.screen.areas:
-        if a.spaces.active and a.spaces.active.type == 'VIEW_3D':
-            return a.spaces.active.region_3d
-
-the_3d_area = get_3d_area()
-
 # init project info
 proj_path = bpy.path.abspath("//")
 hs_path = os.path.join(proj_path, "hs", "yumegame")
