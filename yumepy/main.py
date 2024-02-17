@@ -65,28 +65,29 @@ def sock_loop():
             print("(re-)connecting to the server")
             the_socket.connect(("127.0.0.1", 3170))
             ev_retry_connection.clear()
-        stream = the_socket.recv(4096)
+        stream = the_socket.recv(1024)
         if len(stream) == 0:
             return socket_end()
-        datatype, stream = stream[:8], stream[8:]
-        datatype = struct.unpack(">Q", datatype)[0]
-        datalen, stream = stream[:8], stream[8:]
-        datalen = struct.unpack(">Q", datalen)[0]
-        if datalen < 1000000:
-            data, stream = stream[:datalen], stream[datalen:]
-            if len(data) == datalen:
-                try:
-                    if datatype == 1:
-                        exec(data.decode(), globals())
-                except Exception as e:
-                    print("Error occured during eval\n[Received Script]\n%s\n[Error Message]\n%s" % (data, e))
-                return timeframe
+        while len(stream):
+            datatype, stream = stream[:8], stream[8:]
+            datatype = struct.unpack(">Q", datatype)[0]
+            datalen, stream = stream[:8], stream[8:]
+            datalen = struct.unpack(">Q", datalen)[0]
+            if datalen < 1000000:
+                data, stream = stream[:datalen], stream[datalen:]
+                if len(data) == datalen:
+                    try:
+                        if datatype == 1:
+                            exec(data.decode(), globals())
+                    except Exception as e:
+                        print("Error occured during eval\n[Received Script]\n%s\n[Error Message]\n%s" % (data, e))
+                else:
+                    the_socket.close()
+                    raise ValueError("Inconsistent data lengths (%s <-> %s)" % (datalen, len(data)))
             else:
                 the_socket.close()
-                raise ValueError("Inconsistent data lengths (%s <-> %s)" % (datalen, len(data)))
-        else:
-            the_socket.close()
-            raise ValueError("Too large input (data length: %s)" % datalen)
+                raise ValueError("Too large input (data length: %s)" % datalen)
+        return timeframe
     except socket.error:
         return socket_end()
 

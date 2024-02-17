@@ -17,7 +17,6 @@ def reset_distance_of_view():
     get_region_3d().view_distance = 0.1
 
 def rotate_view(x, y, z):
-    print(x, y, z, 'rotate')
     r = get_region_3d()
     v = mathutils.Euler((x, y, z), "XYZ")
     q = r.view_rotation.copy()
