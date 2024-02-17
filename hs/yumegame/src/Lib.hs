@@ -36,20 +36,12 @@ evDeviceAdd = SDL.JoyDeviceEvent(SDL.JoyDeviceEventData SDL.JoyDeviceAdded (from
 evDeviceRemoved :: SDL.EventPayload
 evDeviceRemoved = SDL.JoyDeviceEvent(SDL.JoyDeviceEventData SDL.JoyDeviceRemoved (fromIntegral globalJoystickIndex))
 
-getMsg :: Socket -> Int -> IO S.ByteString
-getMsg s n = do
-    x <- recv s n
-    if S.length x == n then do
-      y <- getMsg s n
-      return (x <> y)
-    else return x
-
 startServer :: IO ()
 startServer = do
   shutdownRef <- newIORef False
 
   _ <- forkIO (runTCPServer (Just "127.0.0.1") "3171" (\s -> do
-        msg <- getMsg s 1024
+        msg <- recv s 1024
         when (msg == "shutdown") $ do
           writeIORef shutdownRef True
       ))

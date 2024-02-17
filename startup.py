@@ -1,3 +1,5 @@
+# Please copy and paste this script into Blender's console
+
 import os
 
 proj_path = bpy.path.abspath("//")

@@ -54,11 +54,15 @@ absThreshold a b = if -a < b && b < a then 0 else b
 
 reloadScript :: S.ByteString
 reloadScript = [s|
-print('Reloading hsfunctions module...')
+print('Reloading hsfunctions...')
 with open(os.path.join(proj_path, "hs", "yumegame", "hsfunctions.py")) as f:
-    exec(f.read(), globals())
-print(the_3d_area)
+  exec(f.read(), globals())
+reset_distance_of_view()
 |]
+
+pairAbsThreshold :: (Num a, Ord a) => Event a -> Event a -> a -> Event (a, a)
+pairAbsThreshold ev0 ev1 threshold = filterE (\(a, b) -> not (a == 0 && b == 0))
+        (joinE (absThreshold threshold <$> ev0) (absThreshold threshold <$> ev1))
 
 yaruzoo :: SF Outerworld Innerworld
 yaruzoo = proc x -> do
@@ -68,16 +72,27 @@ yaruzoo = proc x -> do
   axis00 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 0) sdlEvs
   axis01 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 1) sdlEvs
 
-  axis10 <- lastOfList -< mapMaybe (getJoyAxisValueFor 1 0) sdlEvs
-  axis11 <- lastOfList -< mapMaybe (getJoyAxisValueFor 1 1) sdlEvs
+  axis10 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 3) sdlEvs
+  axis11 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 4) sdlEvs
+
+  -- joy axis 0 (move)
+  let axis0 = pairAbsThreshold axis00 axis01 1000
 
   let py_move_view = fromString . (\(d0, d1) -> 
-        "move_view(" <> show (fromIntegral d0 / 15000000 :: Double) <> ", 0, " <> show (fromIntegral d1 / 15000000 :: Double) <> ")") 
-        <$> joinE (absThreshold 1000 <$> axis00) (absThreshold 1000 <$> axis01)
+        "move_view(" <> show (fromIntegral d0 / 15000000 :: Double) <> ", 0, " <> show (fromIntegral d1 / 15000000 :: Double) <> ")") <$> axis0
+  
+  let axis1 = pairAbsThreshold axis10 axis11 1000
+
+  let py_rotate_view = fromString . (\(d0, d1) -> 
+        "rotate_view(" <> show (fromIntegral d1 / (-15000000) :: Double) <> ", " <> show (fromIntegral d0 / (-15000000) :: Double) <> ", 0)") <$> axis1
+  
+  -- joy axis 0 (rotate)
+
+  -- let debug = Event $ "print('''" <> fromString (show sdlEvs) <> "''')"
 
   -- output results
   py_reload <- now reloadScript -< ()
-  let scr = catEvents [py_reload, py_move_view]
+  let scr = catEvents [py_reload, py_move_view, py_rotate_view]
   ping <- repeatedly 1 () -< ()
   returnA -< Innerworld {
     _script = case scr of
