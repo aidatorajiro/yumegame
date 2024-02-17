@@ -64,27 +64,49 @@ pairAbsThreshold :: (Num a, Ord a) => Event a -> Event a -> a -> Event (a, a)
 pairAbsThreshold ev0 ev1 threshold = filterE (\(a, b) -> not (a == 0 && b == 0))
         (joinE (absThreshold threshold <$> ev0) (absThreshold threshold <$> ev1))
 
+-- | Drop Event until given condition is satisfied.
+-- | Once the condition is satisfied, it will always deliver Event regardless of the condition afterwards.
+dropUntil :: (a -> Bool) -> SF (Event a) (Event a)
+dropUntil condition =
+  let has_condition_already_met = sscan (\bool dat -> bool || case dat of 
+                  Event dat_in -> condition dat_in
+                  NoEvent -> False) False
+  in proc x -> do
+        b <- has_condition_already_met -< x
+        returnA -< if b then x else NoEvent
+
 yaruzoo :: SF Outerworld Innerworld
 yaruzoo = proc x -> do
   t <- time -< ()
   let sdlEvs = SDL.eventPayload <$> (x ^. sdlEvents)
 
-  axis00 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 0) sdlEvs
-  axis01 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 1) sdlEvs
+  moveaxis0 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 0) sdlEvs
+  moveaxis1 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 1) sdlEvs
 
-  axis10 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 3) sdlEvs
-  axis11 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 4) sdlEvs
+  rotaxis0 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 3) sdlEvs
+  rotaxis1 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 4) sdlEvs
+  
+  rotaxis2 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 2) sdlEvs
+  rotaxis3 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 5) sdlEvs
+
+  rotaxis2' <- dropUntil (<(-32768+2000)) -< rotaxis2
+  rotaxis3' <- dropUntil (<(-32768+2000)) -< rotaxis3
 
   -- joy axis 0 (move)
-  let axis0 = pairAbsThreshold axis00 axis01 1000
+  let movaxis = pairAbsThreshold moveaxis0 moveaxis1 2000
 
   let py_move_view = fromString . (\(d0, d1) -> 
-        "move_view(" <> show (fromIntegral d0 / 15000000 :: Double) <> ", 0, " <> show (fromIntegral d1 / 15000000 :: Double) <> ")") <$> axis0
+        "move_view(" <> show (fromIntegral d0 / 15000000 :: Double) <> ", 0, " <> show (fromIntegral d1 / 15000000 :: Double) <> ")") <$> movaxis
   
-  let axis1 = pairAbsThreshold axis10 axis11 1000
+  let rotaxis_xy = pairAbsThreshold rotaxis0 rotaxis1 2000
 
   let py_rotate_view = fromString . (\(d0, d1) -> 
-        "rotate_view(" <> show (fromIntegral d1 / (-15000000) :: Double) <> ", " <> show (fromIntegral d0 / (-15000000) :: Double) <> ", 0)") <$> axis1
+        "rotate_view(" <> show (fromIntegral d1 / (-15000000) :: Double) <> ", " <> show (fromIntegral d0 / (-15000000) :: Double) <> ", 0)") <$> rotaxis_xy
+  
+  let axis_offset i = fromIntegral i + 32768 :: Int
+  let rotaxis_z = pairAbsThreshold (axis_offset <$> rotaxis2') (axis_offset <$> rotaxis3') 2000
+  let py_rotate_view_z = fromString . (\(d0, d1) -> 
+        "rotate_view(0, 0, " <> show (fromIntegral (d0 - d1) / 15000000 :: Double) <> ")") <$> rotaxis_z
   
   -- joy axis 0 (rotate)
 
@@ -92,7 +114,7 @@ yaruzoo = proc x -> do
 
   -- output results
   py_reload <- now reloadScript -< ()
-  let scr = catEvents [py_reload, py_move_view, py_rotate_view]
+  let scr = catEvents [py_reload, py_move_view, py_rotate_view, py_rotate_view_z]
   ping <- repeatedly 1 () -< ()
   returnA -< Innerworld {
     _script = case scr of

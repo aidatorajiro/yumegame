@@ -9,7 +9,7 @@ def move_view(x, y, z):
     r.view_location += v
 
 def reset_distance_of_view():
-    the_3d_area.view_distance = 0.0
+    the_3d_area.view_distance = 0.1
 
 def rotate_view(x, y, z):
     print(x, y, z, 'rotate')
@@ -19,4 +19,6 @@ def rotate_view(x, y, z):
     q.invert()
     q.rotate(v)
     q.rotate(r.view_rotation)
-    r.view_rotation.rotate(q)
+    q2 = r.view_rotation.copy()
+    q2.rotate(q)
+    r.view_rotation = q2
