@@ -6,6 +6,7 @@ import glob
 import socket
 import struct
 import time
+from threading import Event
 
 def get_3d_area():
     for a in bpy.context.screen.areas:
@@ -37,67 +38,89 @@ if not os.path.exists(venv_path):
 if not package_path in sys.path:
     sys.path.append(package_path)
 
-def client_inner():
-    while True:
-        try:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                print("(re-)connecting to the server")
-                s.connect(("127.0.0.1", 3170))
-                while True:
-                    if ev_ask_terminate.is_set():
-                        return
-                    datatype = s.recv(8)
-                    if len(datatype) == 0:
-                        break
-                    datatype = struct.unpack(">Q", datatype)[0]
-                    datalen = s.recv(8)
-                    if len(datalen) == 0:
-                        break
-                    datalen = struct.unpack(">Q", datalen)[0]
-                    if datalen < 1000000:
-                        data = s.recv(datalen)
-                        if len(data) == 0:
-                            break
-                        if len(data) == datalen:
-                            try:
-                                if datatype == 1:
-                                    exec(data.decode(), globals())
-                            except Exception as e:
-                                print("Error occured during eval\n[Received Script]\n%s\n[Error Message]\n%s" % (data, e))
-                        else:
-                            raise ValueError("Inconsistent data lengths (%s <-> %s)" % (datalen, len(data)))
-                    else:
-                        raise ValueError("Too large input (data length: %s)" % datalen)
-        except socket.error:
-            print("connect lost")
-            if ev_ask_terminate.is_set():
-                return
-            time.sleep(1)
+timeframe = 1 / 60
 
-from threading import Thread, Event
+def sock_loop():
+    global the_socket
+    def terminate_check():
+        if ev_ask_terminate.is_set():
+            print("unregistering timer...")
+            try:
+                the_socket.close()
+            except Exception:
+                pass
+            ev_ask_terminate.clear()
+            ev_retry_connection.set()
+            return True
+    def socket_end():
+        print("connect lost")
+        try:
+            the_socket.close()
+        except Exception:
+            pass
+        if terminate_check():
+            return None
+        print("retrying connection...")
+        ev_retry_connection.set()
+        return 1
+    
+    try:
+        if terminate_check():
+            return None
+        if ev_retry_connection.is_set():
+            the_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            print("(re-)connecting to the server")
+            the_socket.connect(("127.0.0.1", 3170))
+            ev_retry_connection.clear()
+        stream = the_socket.recv(4096)
+        if len(stream) == 0:
+            return socket_end()
+        datatype, stream = stream[:8], stream[8:]
+        datatype = struct.unpack(">Q", datatype)[0]
+        datalen, stream = stream[:8], stream[8:]
+        datalen = struct.unpack(">Q", datalen)[0]
+        if datalen < 1000000:
+            data, stream = stream[:datalen], stream[datalen:]
+            if len(data) == datalen:
+                try:
+                    if datatype == 1:
+                        exec(data.decode(), globals())
+                except Exception as e:
+                    print("Error occured during eval\n[Received Script]\n%s\n[Error Message]\n%s" % (data, e))
+                return timeframe
+            else:
+                the_socket.close()
+                raise ValueError("Inconsistent data lengths (%s <-> %s)" % (datalen, len(data)))
+        else:
+            the_socket.close()
+            raise ValueError("Too large input (data length: %s)" % datalen)
+    except socket.error:
+        return socket_end()
+
+try:
+    the_socket
+except NameError:
+    the_socket = None
 
 try:
     ev_ask_terminate
+    ev_retry_connection
 except NameError:
     ev_ask_terminate = Event()
+    ev_retry_connection = Event()
+    ev_retry_connection.set()
 
 try:
-    client_thread
+    client_thread_created
 except NameError:
-    client_thread = None
+    client_thread_created = False
 
 def start():
-    global ev_ask_terminate
-    global client_thread
-    if client_thread is not None:
-        print("thread object exists")
-        if client_thread.is_alive():
-            print("terminating existing thread")
-            ev_ask_terminate.set()
-            print("waiting...")
-            client_thread.join()
-        ev_ask_terminate.clear()
-    client_thread = Thread(target=client_inner, args=[])
-    client_thread.start()
+    global client_thread_created
+    if client_thread_created == True:
+        print("terminating existing thread")
+        ev_ask_terminate.set()
+    bpy.app.timers.register(sock_loop, first_interval=2)
+    client_thread_created = True
 
 start()

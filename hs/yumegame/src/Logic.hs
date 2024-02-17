@@ -121,6 +121,4 @@ yaruzoo = proc x -> do
       NoEvent -> []
       Event xs -> xs,
     _timestamp = t,
-    _pingMessage = case ping of
-      NoEvent -> []
-      Event () -> ["p"] }
+    _pingMessage = ["p"] }
