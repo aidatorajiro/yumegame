@@ -41,7 +41,7 @@ startServer = do
   shutdownRef <- newIORef False
 
   _ <- forkIO (runTCPServer (Just "127.0.0.1") "3171" (\s -> do
-        msg <- recv s 1024
+        msg <- recv s 4096
         when (msg == "shutdown") $ do
           writeIORef shutdownRef True
       ))
@@ -107,7 +107,7 @@ runTCPServer mhost port server = withSocketsDo $ do
         setSocketOption sock ReuseAddr 1
         withFdSocket sock setCloseOnExecIfNeeded
         bind sock $ addrAddress addr
-        listen sock 1024
+        listen sock 4096
         return sock
     loop sock = forever $ do
         (conn, _peer) <- accept sock

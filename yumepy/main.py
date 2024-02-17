@@ -35,6 +35,7 @@ timeframe = 1 / 60
 
 def sock_loop():
     global the_socket
+    
     def terminate_check():
         if ev_ask_terminate.is_set():
             print("unregistering timer...")
@@ -57,6 +58,14 @@ def sock_loop():
         ev_retry_connection.set()
         return 1
     
+    def get_stream():
+        s = the_socket.recv(4096)
+        r = s
+        while len(s) == 4096:
+            s = the_socket.recv(4096)
+            r += s
+        return r
+
     try:
         if terminate_check():
             return None
@@ -65,7 +74,7 @@ def sock_loop():
             print("(re-)connecting to the server")
             the_socket.connect(("127.0.0.1", 3170))
             ev_retry_connection.clear()
-        stream = the_socket.recv(1024)
+        stream = get_stream()
         if len(stream) == 0:
             return socket_end()
         while len(stream):
