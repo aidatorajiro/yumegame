@@ -59,6 +59,11 @@ startServer = do
   let talk s = do
         timeRef <- newIORef =<< getTime Monotonic
         putStrLn "Connected"
+        
+        _ <- forkIO $ forever $ do
+          msg <- recv s 4096
+          putStrLn ("received" <> show msg)
+        
         reactimate (return initialOuterworld)
             (\can_block -> do
               timeDiff <- liftA2 (-) (getTime Monotonic) (readIORef timeRef)
@@ -70,8 +75,8 @@ startServer = do
               return (fromIntegral (toNanoSecs timeDiff) / 1000000000,
                 Just (initialOuterworld & sdlEvents .~ evs)))
             (\is_changed inner -> do
-              mapM_ (sendAll s . createMessage 1) (inner ^. script)
-              mapM_ (sendAll s . createMessage 0) (inner ^. pingMessage)
+              let mes = map (createMessage 1) (inner ^. script) <> map (createMessage 0) (inner ^. pingMessage)
+              sendAll s (S.concat mes)
               threadDelay 16666
               return False)
             yaruzoo

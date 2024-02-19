@@ -64,7 +64,7 @@ pairAbsThreshold :: (Num a, Ord a) => Event a -> Event a -> a -> Event (a, a)
 pairAbsThreshold ev0 ev1 threshold = filterE (\(a, b) -> not (a == 0 && b == 0))
         (joinE (absThreshold threshold <$> ev0) (absThreshold threshold <$> ev1))
 
--- | Drop Event until given condition is satisfied.
+-- | Drop Event until the given condition is satisfied.
 -- | Once the condition is satisfied, it will always deliver Event regardless of the condition afterwards.
 dropUntil :: (a -> Bool) -> SF (Event a) (Event a)
 dropUntil condition =
@@ -112,9 +112,11 @@ yaruzoo = proc x -> do
 
   -- let debug = Event $ "print('''" <> fromString (show sdlEvs) <> "''')"
 
+  debug_sock_send <- repeatedly 1 "sock_send(b'12345')" -< ()
+
   -- output results
   py_reload <- now reloadScript -< ()
-  let scr = catEvents [py_reload, py_move_view, py_rotate_view, py_rotate_view_z]
+  let scr = catEvents [py_reload, py_move_view, py_rotate_view, py_rotate_view_z, debug_sock_send]
   ping <- repeatedly 1 () -< ()
   returnA -< Innerworld {
     _script = case scr of

@@ -13,6 +13,9 @@ def move_view(x, y, z):
     v.rotate(r.view_rotation)
     r.view_location += v
 
+def sock_send(data):
+    the_socket.send(struct.pack(">Q", len(data)) + data)
+
 def reset_distance_of_view():
     get_region_3d().view_distance = 0.1
 
