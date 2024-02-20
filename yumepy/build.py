@@ -7,6 +7,7 @@ import os
 import subprocess
 from util import calculate_env
 import sys
+from threading import Event
 
 modified_flag = 1
 modified_flag_up = 0
@@ -45,6 +46,7 @@ def watch():
             time.sleep(1)
             if modified_flag > modified_flag_up:
                 modified_flag_up = modified_flag
+                logging.info("detect modification. running build again...")
                 if current_proc is not None:
                     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                         logging.info("Sending shutdown signal")

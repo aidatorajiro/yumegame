@@ -12,6 +12,7 @@ module Logic (
       yaruzoo,
       scriptReturns,
       sdlEvents,
+      incomingMessage,
       script,
       pingMessage,
       timestamp) where
@@ -28,11 +29,11 @@ import Data.Int (Int32, Int16)
 import Data.String (IsString(fromString))
 import Data.String.QQ
 
-data Outerworld = Outerworld { _scriptReturns :: [(Int, S.ByteString)], _sdlEvents :: [SDL.Event] }
+data Outerworld = Outerworld { _scriptReturns :: [(Int, S.ByteString)], _sdlEvents :: [SDL.Event], _incomingMessage :: [S.ByteString] }
 $(makeLenses ''Outerworld)
 
 initialOuterworld :: Outerworld
-initialOuterworld = Outerworld { _scriptReturns = [], _sdlEvents = [] }
+initialOuterworld = Outerworld { _scriptReturns = [], _sdlEvents = [], _incomingMessage = [] }
 
 data Innerworld = Innerworld { _script :: [S.ByteString], _timestamp :: Double, _pingMessage :: [S.ByteString] }
 $(makeLenses ''Innerworld)

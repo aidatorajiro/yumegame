@@ -20,6 +20,8 @@ import qualified Data.Vector as Vector
 import qualified SDL
 import Logic
 import Control.Lens
+import Control.Concurrent.STM.TQueue
+import Control.Concurrent.STM
 
 createMessage :: Int64 -> S.ByteString -> S.ByteString
 createMessage messageType messageBytes = S.toStrict (
@@ -40,15 +42,15 @@ startServer :: IO ()
 startServer = do
   shutdownRef <- newIORef False
 
+  joystickRef <- newIORef Nothing
+
+  SDL.initializeAll
+
   _ <- forkIO (runTCPServer (Just "127.0.0.1") "3171" (\s -> do
         msg <- recv s 4096
         when (msg == "shutdown") $ do
           writeIORef shutdownRef True
       ))
-
-  SDL.initializeAll
-
-  joystickRef <- newIORef Nothing
 
   let reloadJoysticks = do
         joysticks <- SDL.availableJoysticks
@@ -58,11 +60,13 @@ startServer = do
 
   let talk s = do
         timeRef <- newIORef =<< getTime Monotonic
+        queue_incoming <- atomically newTQueue
+
         putStrLn "Connected"
         
         _ <- forkIO $ forever $ do
           msg <- recv s 4096
-          putStrLn ("received" <> show msg)
+          atomically (writeTQueue queue_incoming msg)
         
         reactimate (return initialOuterworld)
             (\can_block -> do
@@ -72,8 +76,10 @@ startServer = do
               evs <- SDL.pollEvents
               when (any (\x -> SDL.eventPayload x == evDeviceAdd) evs) reloadJoysticks
 
+              incoming_packets <- atomically $ flushTQueue queue_incoming
+
               return (fromIntegral (toNanoSecs timeDiff) / 1000000000,
-                Just (initialOuterworld & sdlEvents .~ evs)))
+                Just (initialOuterworld & sdlEvents .~ evs & incomingMessage .~ incoming_packets)))
             (\is_changed inner -> do
               let mes = map (createMessage 1) (inner ^. script) <> map (createMessage 0) (inner ^. pingMessage)
               sendAll s (S.concat mes)
