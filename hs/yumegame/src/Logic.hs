@@ -78,12 +78,21 @@ dropUntil condition =
 
 yaruzoo :: SF Outerworld Innerworld
 yaruzoo = proc x -> do
+  -- fetch outer world values
   t <- time -< ()
   let sdlEvs = SDL.eventPayload <$> (x ^. sdlEvents)
+  let incoming = x ^. incomingMessage
 
+  -- joy axis 0 (move)
   moveaxis0 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 0) sdlEvs
   moveaxis1 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 1) sdlEvs
 
+  let movaxis = pairAbsThreshold moveaxis0 moveaxis1 2000
+
+  let py_move_view = fromString . (\(d0, d1) -> 
+        "move_view(" <> show (fromIntegral d0 / 15000000 :: Double) <> ", 0, " <> show (fromIntegral d1 / 15000000 :: Double) <> ")") <$> movaxis
+
+  -- joy axis 0 (rotate)
   rotaxis0 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 3) sdlEvs
   rotaxis1 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 4) sdlEvs
   
@@ -92,12 +101,6 @@ yaruzoo = proc x -> do
 
   rotaxis2' <- dropUntil (<(-32768+2000)) -< rotaxis2
   rotaxis3' <- dropUntil (<(-32768+2000)) -< rotaxis3
-
-  -- joy axis 0 (move)
-  let movaxis = pairAbsThreshold moveaxis0 moveaxis1 2000
-
-  let py_move_view = fromString . (\(d0, d1) -> 
-        "move_view(" <> show (fromIntegral d0 / 15000000 :: Double) <> ", 0, " <> show (fromIntegral d1 / 15000000 :: Double) <> ")") <$> movaxis
   
   let rotaxis_xy = pairAbsThreshold rotaxis0 rotaxis1 2000
 
@@ -109,10 +112,6 @@ yaruzoo = proc x -> do
   let py_rotate_view_z = fromString . (\(d0, d1) -> 
         "rotate_view(0, 0, " <> show (fromIntegral (d0 - d1) / 15000000 :: Double) <> ")") <$> rotaxis_z
   
-  -- joy axis 0 (rotate)
-
-  -- let debug = Event $ "print('''" <> fromString (show sdlEvs) <> "''')"
-
   debug_sock_send <- repeatedly 1 "sock_send(b'12345')" -< ()
 
   -- output results

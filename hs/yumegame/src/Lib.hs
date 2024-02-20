@@ -79,7 +79,8 @@ startServer = do
               incoming_packets <- atomically $ flushTQueue queue_incoming
 
               return (fromIntegral (toNanoSecs timeDiff) / 1000000000,
-                Just (initialOuterworld & sdlEvents .~ evs & incomingMessage .~ incoming_packets)))
+                Just (initialOuterworld & sdlEvents .~ evs
+                                        & incomingMessage .~ incoming_packets)))
             (\is_changed inner -> do
               let mes = map (createMessage 1) (inner ^. script) <> map (createMessage 0) (inner ^. pingMessage)
               sendAll s (S.concat mes)
