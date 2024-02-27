@@ -32,6 +32,7 @@ dependencies:
 - vector
 - template-haskell
 - string-qq
+- json
 
 ghc-options:
 - -Wall

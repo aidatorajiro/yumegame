@@ -22,6 +22,7 @@ import Logic
 import Control.Lens
 import Control.Concurrent.STM.TQueue
 import Control.Concurrent.STM
+import SDL (InitFlag(InitJoystick))
 
 createMessage :: Int64 -> S.ByteString -> S.ByteString
 createMessage messageType messageBytes = S.toStrict (
@@ -33,10 +34,10 @@ globalJoystickIndex :: Int
 globalJoystickIndex = 0
 
 evDeviceAdd :: SDL.EventPayload
-evDeviceAdd = SDL.JoyDeviceEvent(SDL.JoyDeviceEventData SDL.JoyDeviceAdded (fromIntegral globalJoystickIndex))
+evDeviceAdd = SDL.JoyDeviceEvent (SDL.JoyDeviceEventData SDL.JoyDeviceAdded (fromIntegral globalJoystickIndex))
 
 evDeviceRemoved :: SDL.EventPayload
-evDeviceRemoved = SDL.JoyDeviceEvent(SDL.JoyDeviceEventData SDL.JoyDeviceRemoved (fromIntegral globalJoystickIndex))
+evDeviceRemoved = SDL.JoyDeviceEvent (SDL.JoyDeviceEventData SDL.JoyDeviceRemoved (fromIntegral globalJoystickIndex))
 
 startServer :: IO ()
 startServer = do
@@ -44,7 +45,7 @@ startServer = do
 
   joystickRef <- newIORef Nothing
 
-  SDL.initializeAll
+  SDL.initialize [SDL.InitGameController, SDL.InitJoystick, SDL.InitAudio]
 
   _ <- forkIO (runTCPServer (Just "127.0.0.1") "3171" (\s -> do
         msg <- recv s 4096
@@ -63,11 +64,11 @@ startServer = do
         queue_incoming <- atomically newTQueue
 
         putStrLn "Connected"
-        
+
         _ <- forkIO $ forever $ do
           msg <- recv s 4096
           atomically (writeTQueue queue_incoming msg)
-        
+
         reactimate (return initialOuterworld)
             (\can_block -> do
               timeDiff <- liftA2 (-) (getTime Monotonic) (readIORef timeRef)
@@ -75,6 +76,8 @@ startServer = do
 
               evs <- SDL.pollEvents
               when (any (\x -> SDL.eventPayload x == evDeviceAdd) evs) reloadJoysticks
+
+              -- unless (null evs) $ print evs
 
               incoming_packets <- atomically $ flushTQueue queue_incoming
 

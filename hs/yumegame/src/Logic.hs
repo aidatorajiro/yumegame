@@ -38,21 +38,38 @@ initialOuterworld = Outerworld { _scriptReturns = [], _sdlEvents = [], _incoming
 data Innerworld = Innerworld { _script :: [S.ByteString], _timestamp :: Double, _pingMessage :: [S.ByteString] }
 $(makeLenses ''Innerworld)
 
+-- | Obtains the last element from the data flow of list. If there is no such value, signals `NoEvent`.
 lastOfList :: SF [x] (Event x)
 lastOfList = proc xs -> do
   hold NoEvent -< (if null xs then NoEvent else Event (Event (last xs)))
 
+-- | Obtains the last element from the data flow of list. If there is no such value, signals given initial value `i`.
+lastOfListWithInit :: x -> SF [x] x
+lastOfListWithInit i = proc xs -> do
+  hold i -< (if null xs then NoEvent else Event (last xs))
+
+-- | obtains axis value for specific combination of controller id (`which`) and axis id (`axis`) from given SDL event `ev`.
 getJoyAxisValueFor :: Int32 -> Word8 -> SDL.EventPayload -> Maybe Int16
 getJoyAxisValueFor which axis ev = case ev of
   SDL.JoyAxisEvent x@(SDL.JoyAxisEventData w a v) -> if (w == which) && (a == axis) then Just v else Nothing
   _ -> Nothing
 
-generateMoveViewScript :: SDL.JoyAxisEventData -> S.ByteString
-generateMoveViewScript (SDL.JoyAxisEventData _ w v) = ""
+getJoyHatValueFor :: Int32 -> Word8 -> SDL.JoyHatPosition -> SDL.JoyHatPosition -> SDL.JoyHatPosition -> SDL.EventPayload -> Maybe Int
+getJoyHatValueFor controllerID hatID posForMinusOne posForZero posForOne ev = case ev of
+  SDL.JoyHatEvent x@(SDL.JoyHatEventData c h p) ->
+    let val
+          | p == posForMinusOne = Just (-1)
+          | p == posForZero = Just 0
+          | p == posForOne = Just 1
+          | otherwise = Nothing
+    in if (c == controllerID) && (h == hatID) then val else Nothing
+  _ -> Nothing
 
+-- | Returns 0 if the absolute value of `b` is smaller than `a`. Returns `b` otherwise.
 absThreshold :: (Num a, Ord a) => a -> a -> a
 absThreshold a b = if -a < b && b < a then 0 else b
 
+-- | Initialization script in python
 reloadScript :: S.ByteString
 reloadScript = [s|
 print('Reloading hsfunctions...')
@@ -61,12 +78,14 @@ with open(os.path.join(proj_path, "hs", "yumegame", "hsfunctions.py")) as f:
 reset_distance_of_view()
 |]
 
+-- | Emit an `Event` if the absolute value of the given two `Event` are both greater than given threshold. NoEvent will be treated as zero value.
 pairAbsThreshold' :: (Num a, Ord a) => Event a -> Event a -> a -> Event (a, a)
 pairAbsThreshold' (Event x) (Event y) threshold = pairAbsThreshold (Event x) (Event y) threshold
 pairAbsThreshold' (Event x) NoEvent threshold = pairAbsThreshold (Event x) (Event 0) threshold
 pairAbsThreshold' NoEvent (Event y) threshold = pairAbsThreshold (Event 0) (Event y) threshold
 pairAbsThreshold' _ _ _ = NoEvent
 
+-- | Emit an Event if the given two Event are both up and their absolute value are both greater than given threshold.
 pairAbsThreshold :: (Num a, Ord a) => Event a -> Event a -> a -> Event (a, a)
 pairAbsThreshold ev0 ev1 threshold = filterE (\(a, b) -> not (a == 0 && b == 0))
         (joinE (absThreshold threshold <$> ev0) (absThreshold threshold <$> ev1))
@@ -101,6 +120,12 @@ yaruzoo = proc x -> do
   let py_move_view = fromString . (\(d0, d1) -> 
         "move_view(" <> show (fromIntegral d0 / 15000000 :: Double) <> ", 0, " <> show (fromIntegral d1 / 15000000 :: Double) <> ")") <$> movaxis
 
+  hataxis0 <- lastOfListWithInit 0 -< mapMaybe (getJoyHatValueFor 0 0 SDL.HatDown SDL.HatCentered SDL.HatUp) sdlEvs
+
+  let py_move_view_z
+        | hataxis0 == 0 = NoEvent
+        | otherwise = Event $ fromString $ "move_view(0, " <> show (fromIntegral hataxis0 / 7500 :: Double) <> ", 0)"
+
   -- joy axis 0 (rotate)
   rotaxis0 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 3) sdlEvs
   rotaxis1 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 4) sdlEvs
@@ -108,8 +133,8 @@ yaruzoo = proc x -> do
   rotaxis2 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 2) sdlEvs
   rotaxis3 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 5) sdlEvs
 
-  rotaxis2' <- dropUntil (<(-32768+commonThreshold)) -< rotaxis2
-  rotaxis3' <- dropUntil (<(-32768+commonThreshold)) -< rotaxis3
+  rotaxis2' <- dropUntil (<(-32768 + commonThreshold)) -< rotaxis2
+  rotaxis3' <- dropUntil (<(-32768 + commonThreshold)) -< rotaxis3
   
   let rotaxis_xy = pairAbsThreshold rotaxis0 rotaxis1 commonThreshold
 
@@ -119,13 +144,15 @@ yaruzoo = proc x -> do
   let axis_offset i = fromIntegral i + 32768 :: Int
   let rotaxis_z = pairAbsThreshold' (axis_offset <$> rotaxis2') (axis_offset <$> rotaxis3') (fromIntegral commonThreshold)
   let py_rotate_view_z = fromString . (\(d0, d1) -> 
-        "rotate_view(0, 0, " <> show (fromIntegral (d0 - d1) / 15000000 :: Double) <> ")") <$> rotaxis_z
+        "rotate_view(0, 0, " <> show (fromIntegral (d1 - d0) / 15000000 :: Double) <> ")") <$> rotaxis_z
   
   debug_sock_send <- repeatedly 1 "sock_send(b'12345')" -< ()
 
+  py_reset_1sec <- repeatedly 1 "reset_distance_of_view()" -< ()
+
   -- output results
   py_reload <- now reloadScript -< ()
-  let scr = catEvents [py_reload, py_move_view, py_rotate_view, py_rotate_view_z, debug_sock_send]
+  let scr = catEvents [py_reload, py_move_view, py_rotate_view, py_rotate_view_z, py_reset_1sec, py_move_view_z]
   ping <- repeatedly 1 () -< ()
   returnA -< Innerworld {
     _script = case scr of
