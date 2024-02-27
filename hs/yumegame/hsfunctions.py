@@ -1,4 +1,8 @@
 import mathutils
+import struct
+
+def get_collection():
+    return bpy.data.collections.new("YumegameCollection")
 
 def get_region_3d():
     for a in bpy.context.screen.areas:
@@ -16,7 +20,6 @@ def move_view(x, y, z):
 def sock_send(data):
     the_socket.send(struct.pack(">Q", len(data)) + data)
 
-# TODO: minimize visual effect of the function using rotation, position and distance (i.e. pos <- pos - (normal vector of the camera)*(distance - 0.1); distance <- 0.1)
 def reset_distance_of_view():
     get_region_3d().view_distance = 0.1
 
