@@ -61,6 +61,12 @@ with open(os.path.join(proj_path, "hs", "yumegame", "hsfunctions.py")) as f:
 reset_distance_of_view()
 |]
 
+pairAbsThreshold' :: (Num a, Ord a) => Event a -> Event a -> a -> Event (a, a)
+pairAbsThreshold' (Event x) (Event y) threshold = pairAbsThreshold (Event x) (Event y) threshold
+pairAbsThreshold' (Event x) NoEvent threshold = pairAbsThreshold (Event x) (Event 0) threshold
+pairAbsThreshold' NoEvent (Event y) threshold = pairAbsThreshold (Event 0) (Event y) threshold
+pairAbsThreshold' _ _ _ = NoEvent
+
 pairAbsThreshold :: (Num a, Ord a) => Event a -> Event a -> a -> Event (a, a)
 pairAbsThreshold ev0 ev1 threshold = filterE (\(a, b) -> not (a == 0 && b == 0))
         (joinE (absThreshold threshold <$> ev0) (absThreshold threshold <$> ev1))
@@ -108,7 +114,7 @@ yaruzoo = proc x -> do
         "rotate_view(" <> show (fromIntegral d1 / (-15000000) :: Double) <> ", " <> show (fromIntegral d0 / (-15000000) :: Double) <> ", 0)") <$> rotaxis_xy
   
   let axis_offset i = fromIntegral i + 32768 :: Int
-  let rotaxis_z = pairAbsThreshold (axis_offset <$> rotaxis2') (axis_offset <$> rotaxis3') 2000
+  let rotaxis_z = pairAbsThreshold' (axis_offset <$> rotaxis2') (axis_offset <$> rotaxis3') 2000
   let py_rotate_view_z = fromString . (\(d0, d1) -> 
         "rotate_view(0, 0, " <> show (fromIntegral (d0 - d1) / 15000000 :: Double) <> ")") <$> rotaxis_z
   
