@@ -82,6 +82,9 @@ dropUntil condition =
         b <- has_condition_already_met -< x
         returnA -< if b then x else NoEvent
 
+commonThreshold :: Int16
+commonThreshold = 2000
+
 yaruzoo :: SF Outerworld Innerworld
 yaruzoo = proc x -> do
   -- fetch outer world values
@@ -93,7 +96,7 @@ yaruzoo = proc x -> do
   moveaxis0 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 0) sdlEvs
   moveaxis1 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 1) sdlEvs
 
-  let movaxis = pairAbsThreshold moveaxis0 moveaxis1 2000
+  let movaxis = pairAbsThreshold moveaxis0 moveaxis1 commonThreshold
 
   let py_move_view = fromString . (\(d0, d1) -> 
         "move_view(" <> show (fromIntegral d0 / 15000000 :: Double) <> ", 0, " <> show (fromIntegral d1 / 15000000 :: Double) <> ")") <$> movaxis
@@ -105,16 +108,16 @@ yaruzoo = proc x -> do
   rotaxis2 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 2) sdlEvs
   rotaxis3 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 5) sdlEvs
 
-  rotaxis2' <- dropUntil (<(-32768+2000)) -< rotaxis2
-  rotaxis3' <- dropUntil (<(-32768+2000)) -< rotaxis3
+  rotaxis2' <- dropUntil (<(-32768+commonThreshold)) -< rotaxis2
+  rotaxis3' <- dropUntil (<(-32768+commonThreshold)) -< rotaxis3
   
-  let rotaxis_xy = pairAbsThreshold rotaxis0 rotaxis1 2000
+  let rotaxis_xy = pairAbsThreshold rotaxis0 rotaxis1 commonThreshold
 
   let py_rotate_view = fromString . (\(d0, d1) -> 
         "rotate_view(" <> show (fromIntegral d1 / (-15000000) :: Double) <> ", " <> show (fromIntegral d0 / (-15000000) :: Double) <> ", 0)") <$> rotaxis_xy
   
   let axis_offset i = fromIntegral i + 32768 :: Int
-  let rotaxis_z = pairAbsThreshold' (axis_offset <$> rotaxis2') (axis_offset <$> rotaxis3') 2000
+  let rotaxis_z = pairAbsThreshold' (axis_offset <$> rotaxis2') (axis_offset <$> rotaxis3') (fromIntegral commonThreshold)
   let py_rotate_view_z = fromString . (\(d0, d1) -> 
         "rotate_view(0, 0, " <> show (fromIntegral (d0 - d1) / 15000000 :: Double) <> ")") <$> rotaxis_z
   
