@@ -23,6 +23,7 @@ import Control.Lens
 import Control.Concurrent.STM.TQueue
 import Control.Concurrent.STM
 import SDL (InitFlag(InitJoystick))
+import Control.Applicative (liftA2)
 
 createMessage :: Int64 -> S.ByteString -> S.ByteString
 createMessage messageType messageBytes = S.toStrict (
