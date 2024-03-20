@@ -7,3 +7,6 @@ venv
 original_image_data
 backup.py
 __pycache__
+mount.py
+mnt
+render
