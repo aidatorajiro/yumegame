@@ -1,18 +1,18 @@
-cabal-version: 2.2
+cabal-version: 1.12
 
 -- This file has been generated from package.yaml by hpack version 0.36.0.
 --
 -- see: https://github.com/sol/hpack
 
-name:           yumegame
+name:           yumegamehs
 version:        0.1.0.0
-description:    Please see the README on GitHub at <https://github.com/githubuser/yumegame#readme>
-homepage:       https://github.com/githubuser/yumegame#readme
-bug-reports:    https://github.com/githubuser/yumegame/issues
-author:         Author name here
-maintainer:     example@example.com
-copyright:      2024 Author name here
-license:        BSD-3-Clause
+description:    Please see the README on GitHub at <https://github.com/aidatorajiro/yumegame#readme>
+homepage:       https://github.com/aidatorajiro/yumegame#readme
+bug-reports:    https://github.com/aidatorajiro/yumegame/issues
+author:         Torajiro Aida
+maintainer:     kawarusosu@zoho.com
+copyright:      2024 Torajiro Aida
+license:        GPLv3
 license-file:   LICENSE
 build-type:     Simple
 extra-source-files:
@@ -21,7 +21,7 @@ extra-source-files:
 
 source-repository head
   type: git
-  location: https://github.com/githubuser/yumegame
+  location: https://github.com/aidatorajiro/yumegame
 
 library
   exposed-modules:
@@ -29,9 +29,7 @@ library
       Logic
       TH
   other-modules:
-      Paths_yumegame
-  autogen-modules:
-      Paths_yumegame
+      Paths_yumegamehs
   hs-source-dirs:
       src
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
@@ -51,12 +49,10 @@ library
     , vector
   default-language: Haskell2010
 
-executable yumegame-exe
+executable yumegamehs-exe
   main-is: Main.hs
   other-modules:
-      Paths_yumegame
-  autogen-modules:
-      Paths_yumegame
+      Paths_yumegamehs
   hs-source-dirs:
       app
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
@@ -74,16 +70,14 @@ executable yumegame-exe
     , string-qq
     , template-haskell
     , vector
-    , yumegame
+    , yumegamehs
   default-language: Haskell2010
 
-test-suite yumegame-test
+test-suite yumegamehs-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
-      Paths_yumegame
-  autogen-modules:
-      Paths_yumegame
+      Paths_yumegamehs
   hs-source-dirs:
       test
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
@@ -101,5 +95,5 @@ test-suite yumegame-test
     , string-qq
     , template-haskell
     , vector
-    , yumegame
+    , yumegamehs
   default-language: Haskell2010

@@ -82,7 +82,7 @@ absThreshold a b = if -a < b && b < a then 0 else b
 reloadScript :: S.ByteString
 reloadScript = [s|
 print('Reloading hsfunctions...')
-with open(os.path.join(proj_path, "hs", "yumegame", "hsfunctions.py")) as f:
+with open(os.path.join(proj_path, "yumegamehs", "hsfunctions.py")) as f:
   exec(f.read(), globals())
 reset_distance_of_view()
 |]

@@ -14,7 +14,7 @@ modified_flag_up = 0
 current_proc = None
 
 base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-hs_path = os.path.join(base_path, "hs", "yumegame")
+hs_path = os.path.join(base_path, "yumegamehs")
 
 os.chdir(hs_path)
 

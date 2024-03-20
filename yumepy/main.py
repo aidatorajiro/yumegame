@@ -10,7 +10,7 @@ from threading import Event
 
 # init project info
 proj_path = bpy.path.abspath("//")
-hs_path = os.path.join(proj_path, "hs", "yumegame")
+hs_path = os.path.join(proj_path, "yumegamehs")
 
 # init venv
 venv_path = os.path.join(proj_path, "venv")

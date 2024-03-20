@@ -1,4 +1,4 @@
-# Changelog for `yumegame`
+# Changelog for `yumegamehs`
 
 All notable changes to this project will be documented in this file.
 
