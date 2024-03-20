@@ -54,6 +54,15 @@ getJoyAxisValueFor which axis ev = case ev of
   SDL.JoyAxisEvent x@(SDL.JoyAxisEventData w a v) -> if (w == which) && (a == axis) then Just v else Nothing
   _ -> Nothing
 
+getJoyBtnValueFor :: Int32 -> Word8 -> SDL.EventPayload -> Int
+getJoyBtnValueFor controllerID buttonID ev = case ev of
+    SDL.JoyButtonEvent x@(SDL.JoyButtonEventData c b state) -> if b == buttonID then
+        case state of
+            SDL.JoyButtonPressed -> 1
+            SDL.JoyButtonReleased -> 0
+      else 0
+    _ -> 0
+
 getJoyHatValueFor :: Int32 -> Word8 -> SDL.JoyHatPosition -> SDL.JoyHatPosition -> SDL.JoyHatPosition -> SDL.EventPayload -> Maybe Int
 getJoyHatValueFor controllerID hatID posForMinusOne posForZero posForOne ev = case ev of
   SDL.JoyHatEvent x@(SDL.JoyHatEventData c h p) ->
@@ -153,7 +162,6 @@ yaruzoo = proc x -> do
   -- output results
   py_reload <- now reloadScript -< ()
   let scr = catEvents [py_reload, py_move_view, py_rotate_view, py_rotate_view_z, py_reset_1sec, py_move_view_z]
-  ping <- repeatedly 1 () -< ()
   returnA -< Innerworld {
     _script = case scr of
       NoEvent -> []
