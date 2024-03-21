@@ -2,6 +2,7 @@
 {-# LANGUAGE Arrows #-}
 {-# OPTIONS_GHC -Wno-unused-matches #-}
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 
 module Lib ( startServer ) where
 import Control.Concurrent (forkFinally, threadDelay, forkIO)
@@ -89,6 +90,7 @@ startServer = do
               let mes = map (createMessage 1) (inner ^. script) <> map (createMessage 0) (inner ^. pingMessage)
               sendAll s (S.concat mes)
               threadDelay 16666
+              mapM_ putStrLn (inner ^. debugPrints)
               return False)
             yaruzoo
         return ()
@@ -110,7 +112,7 @@ startServer = do
 runTCPServer :: Maybe HostName -> ServiceName -> (Socket -> IO a) -> IO a
 runTCPServer mhost port server = withSocketsDo $ do
     addr <- resolve
-    E.bracket (open addr) close loop
+    E.bracket (open addr) close loopfunc
   where
     resolve = do
         let hints = defaultHints {
@@ -125,6 +127,6 @@ runTCPServer mhost port server = withSocketsDo $ do
         bind sock $ addrAddress addr
         listen sock 4096
         return sock
-    loop sock = forever $ do
+    loopfunc sock = forever $ do
         (conn, _peer) <- accept sock
         void $ forkFinally (server conn) (const $ gracefulClose conn 5000)

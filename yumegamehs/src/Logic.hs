@@ -15,16 +15,16 @@ module Logic (
       incomingMessage,
       script,
       pingMessage,
-      timestamp) where
+      timestamp,
+      debugPrints) where
 
 import qualified SDL
 import qualified Data.ByteString as S
 import FRP.Yampa
 import Control.Lens.TH
 import Control.Lens
-import Data.Maybe (mapMaybe)
+import Data.Maybe (mapMaybe, isJust)
 import Data.Word (Word8)
-import qualified Data.String as S
 import Data.Int (Int32, Int16)
 import Data.String (IsString(fromString))
 import Data.String.QQ
@@ -35,7 +35,7 @@ $(makeLenses ''Outerworld)
 initialOuterworld :: Outerworld
 initialOuterworld = Outerworld { _scriptReturns = [], _sdlEvents = [], _incomingMessage = [] }
 
-data Innerworld = Innerworld { _script :: [S.ByteString], _timestamp :: Double, _pingMessage :: [S.ByteString] }
+data Innerworld = Innerworld { _script :: [S.ByteString], _timestamp :: Double, _pingMessage :: [S.ByteString], _debugPrints :: [String] }
 $(makeLenses ''Innerworld)
 
 -- | Obtains the last element from the data flow of list. If there is no such value, signals `NoEvent`.
@@ -54,14 +54,14 @@ getJoyAxisValueFor which axis ev = case ev of
   SDL.JoyAxisEvent x@(SDL.JoyAxisEventData w a v) -> if (w == which) && (a == axis) then Just v else Nothing
   _ -> Nothing
 
-getJoyBtnValueFor :: Int32 -> Word8 -> SDL.EventPayload -> Int
+getJoyBtnValueFor :: Int32 -> Word8 -> SDL.EventPayload -> Maybe Int
 getJoyBtnValueFor controllerID buttonID ev = case ev of
     SDL.JoyButtonEvent x@(SDL.JoyButtonEventData c b state) -> if b == buttonID then
         case state of
-            SDL.JoyButtonPressed -> 1
-            SDL.JoyButtonReleased -> 0
-      else 0
-    _ -> 0
+            SDL.JoyButtonPressed -> Just 1
+            SDL.JoyButtonReleased -> Just 0
+      else Nothing
+    _ -> Nothing
 
 getJoyHatValueFor :: Int32 -> Word8 -> SDL.JoyHatPosition -> SDL.JoyHatPosition -> SDL.JoyHatPosition -> SDL.EventPayload -> Maybe Int
 getJoyHatValueFor controllerID hatID posForMinusOne posForZero posForOne ev = case ev of
@@ -103,7 +103,7 @@ pairAbsThreshold ev0 ev1 threshold = filterE (\(a, b) -> not (a == 0 && b == 0))
 -- | Once the condition is satisfied, it will always deliver Event regardless of the condition afterwards.
 dropUntil :: (a -> Bool) -> SF (Event a) (Event a)
 dropUntil condition =
-  let has_condition_already_met = sscan (\bool dat -> bool || case dat of 
+  let has_condition_already_met = sscan (\bool dat -> bool || case dat of
                   Event dat_in -> condition dat_in
                   NoEvent -> False) False
   in proc x -> do
@@ -119,6 +119,11 @@ yaruzoo = proc x -> do
   t <- time -< ()
   let sdlEvs = SDL.eventPayload <$> (x ^. sdlEvents)
   let incoming = x ^. incomingMessage
+  let move_coeff = 4
+
+  let btn_y = case mapMaybe (getJoyBtnValueFor 0 3) sdlEvs of
+                  [] -> Nothing
+                  x:xs -> Just x
 
   -- joy axis 0 (move)
   moveaxis0 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 0) sdlEvs
@@ -126,38 +131,40 @@ yaruzoo = proc x -> do
 
   let movaxis = pairAbsThreshold moveaxis0 moveaxis1 commonThreshold
 
-  let py_move_view = fromString . (\(d0, d1) -> 
-        "move_view(" <> show (fromIntegral d0 / 15000000 :: Double) <> ", 0, " <> show (fromIntegral d1 / 15000000 :: Double) <> ")") <$> movaxis
+  let py_move_view = fromString . (\(d0, d1) ->
+        "move_view(" <> show (fromIntegral d0 / 15000000 * move_coeff :: Double) <> ", 0, " <> show (fromIntegral d1 / 15000000 * move_coeff:: Double) <> ")") <$> movaxis
 
   hataxis0 <- lastOfListWithInit 0 -< mapMaybe (getJoyHatValueFor 0 0 SDL.HatDown SDL.HatCentered SDL.HatUp) sdlEvs
 
   let py_move_view_z
         | hataxis0 == 0 = NoEvent
-        | otherwise = Event $ fromString $ "move_view(0, " <> show (fromIntegral hataxis0 / 7500 :: Double) <> ", 0)"
+        | otherwise = Event $ fromString $ "move_view(0, " <> show (fromIntegral hataxis0 / 2000 * move_coeff :: Double) <> ", 0)"
 
   -- joy axis 0 (rotate)
   rotaxis0 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 3) sdlEvs
   rotaxis1 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 4) sdlEvs
-  
+
   rotaxis2 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 2) sdlEvs
   rotaxis3 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 5) sdlEvs
 
   rotaxis2' <- dropUntil (<(-32768 + commonThreshold)) -< rotaxis2
   rotaxis3' <- dropUntil (<(-32768 + commonThreshold)) -< rotaxis3
-  
+
   let rotaxis_xy = pairAbsThreshold rotaxis0 rotaxis1 commonThreshold
 
-  let py_rotate_view = fromString . (\(d0, d1) -> 
+  let py_rotate_view = fromString . (\(d0, d1) ->
         "rotate_view(" <> show (fromIntegral d1 / (-15000000) :: Double) <> ", " <> show (fromIntegral d0 / (-15000000) :: Double) <> ", 0)") <$> rotaxis_xy
-  
+
   let axis_offset i = fromIntegral i + 32768 :: Int
   let rotaxis_z = pairAbsThreshold' (axis_offset <$> rotaxis2') (axis_offset <$> rotaxis3') (fromIntegral commonThreshold)
-  let py_rotate_view_z = fromString . (\(d0, d1) -> 
+  let py_rotate_view_z = fromString . (\(d0, d1) ->
         "rotate_view(0, 0, " <> show (fromIntegral (d1 - d0) / 15000000 :: Double) <> ")") <$> rotaxis_z
-  
+
   debug_sock_send <- repeatedly 1 "sock_send(b'12345')" -< ()
 
   py_reset_1sec <- repeatedly 1 "reset_distance_of_view()" -< ()
+
+  let debug = [show btn_y | isJust btn_y]
 
   -- output results
   py_reload <- now reloadScript -< ()
@@ -167,4 +174,5 @@ yaruzoo = proc x -> do
       NoEvent -> []
       Event xs -> xs,
     _timestamp = t,
-    _pingMessage = ["p"] }
+    _pingMessage = ["p"],
+    _debugPrints = debug }
