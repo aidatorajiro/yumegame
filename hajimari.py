@@ -24,26 +24,30 @@ WAIT_SECONDS_APPS_OPEN = 10
 WAIT_SECONDS_WINDOW_MOVE = 0.1
 DESKTOP_CONFIG = [[0, 27, 1910, 1016], [1920, 0, 1910, 1046]] # manually obtained x/y/w/h for a window that covers whole display (DESKTOP_CONFIG[0] will be of left display, DESKTOP_CONFIG[1] will be of right display)
 
-
-def move_window_workspace(title, desktop):
+def move_window_workspace(title, desktop, wait=True):
     subprocess.run(["wmctrl", "-r", title, "-t", desktop])
-    time.sleep(WAIT_SECONDS_WINDOW_MOVE)
+    if wait:
+        time.sleep(WAIT_SECONDS_WINDOW_MOVE)
 
-def move_window_position(title, config):
+def move_window_position(title, config, wait=True):
     [gravity, pos_x, pos_y, width, height] = config
     arg = ",".join([str(gravity), str(pos_x), str(pos_y), str(width), str(height)])
     subprocess.run(["wmctrl", "-r", title, "-e", arg])
-    time.sleep(WAIT_SECONDS_WINDOW_MOVE)
+    if wait:
+        time.sleep(WAIT_SECONDS_WINDOW_MOVE)
     subprocess.run(["wmctrl", "-r", title, "-e", arg])
-    time.sleep(WAIT_SECONDS_WINDOW_MOVE)
+    if wait:
+        time.sleep(WAIT_SECONDS_WINDOW_MOVE)
 
-def make_fullscreen(title):
+def make_fullscreen(title, wait=True):
     subprocess.run(["wmctrl", "-r", title, "-b", "add,fullscreen"])
-    time.sleep(WAIT_SECONDS_WINDOW_MOVE)
+    if wait:
+        time.sleep(WAIT_SECONDS_WINDOW_MOVE)
 
-def remove_fullscreen(title):
+def remove_fullscreen(title, wait=True):
     subprocess.run(["wmctrl", "-r", title, "-b", "remove,fullscreen"])
-    time.sleep(WAIT_SECONDS_WINDOW_MOVE)
+    if wait:
+        time.sleep(WAIT_SECONDS_WINDOW_MOVE)
 
 def calc_config(display_id, numgrids_x, numgrids_y, x, y, w, h):
     [_x, _y, _w, _h] = DESKTOP_CONFIG[display_id]
@@ -55,14 +59,16 @@ def calc_config(display_id, numgrids_x, numgrids_y, x, y, w, h):
     ret_h = grid_h * h
     return [0, round(_x + ret_x), round(_y + ret_y), round(ret_w), round(ret_h)]
 
-def switch_desktop(s):
+def switch_desktop(s, wait=True):
     subprocess.run(["wmctrl", "-s", s])
-    time.sleep(WAIT_SECONDS_WINDOW_MOVE)
+    if wait:
+        time.sleep(WAIT_SECONDS_WINDOW_MOVE)
 
-def remove_maximized(title):
+def remove_maximized(title, wait=True):
     subprocess.run(["wmctrl", "-r", title, "-b", "remove,maximized_vert"])
     subprocess.run(["wmctrl", "-r", title, "-b", "remove,maximized_horz"])
-    time.sleep(WAIT_SECONDS_WINDOW_MOVE)
+    if wait:
+        time.sleep(WAIT_SECONDS_WINDOW_MOVE)
 
 if __name__ == '__main__':
     # main ide
@@ -104,7 +110,7 @@ if __name__ == '__main__':
     remove_fullscreen(title)
     remove_maximized(title)
     move_window_workspace(title, desktop)
-    move_window_position(title, calc_config(0, 1, 1, 0, 0, 1, 1))
+    move_window_position(title, calc_config(1, 1, 1, 0, 0, 1, 1))
     make_fullscreen(title)
 
     # Workspace 1: Debug / Sub Code
@@ -150,3 +156,21 @@ if __name__ == '__main__':
     move_window_workspace(title, desktop)
     move_window_position(title, calc_config(0, 1, 1, 0, 0, 1, 1))
     make_fullscreen(title)
+
+    returncode = subprocess.run(["gcc", "-I/usr/include/glib-2.0", "-I/usr/lib/glib-2.0/include", "-lXmu", "-lX11", "-lglib-2.0", "display-switch.c", "-o", "display-switch.o"]).returncode
+
+    subprocess.run(["killall", "display-switch.o"])
+    subprocess.run(["killall", "display-switch.py"])
+    
+    desktop = '0'
+    switch_desktop(desktop)
+    title = "Display Switch Watch"
+    remove_fullscreen(title)
+    remove_maximized(title)
+    move_window_workspace(title, desktop)
+    move_window_position(title, calc_config(0, 1, 1, 0, 0, 1, 1))
+    
+    if returncode == 0:
+        subprocess.run(["./display-switch.o"])
+    else:
+        subprocess.run(["./display-switch.py"])
