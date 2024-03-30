@@ -49,6 +49,16 @@ def remove_fullscreen(title, wait=True):
     if wait:
         time.sleep(WAIT_SECONDS_WINDOW_MOVE)
 
+def make_sticky(title, wait=True):
+    subprocess.run(["wmctrl", "-r", title, "-b", "add,sticky"])
+    if wait:
+        time.sleep(WAIT_SECONDS_WINDOW_MOVE)
+
+def remove_sticky(title, wait=True):
+    subprocess.run(["wmctrl", "-r", title, "-b", "remove,sticky"])
+    if wait:
+        time.sleep(WAIT_SECONDS_WINDOW_MOVE)
+
 def calc_config(display_id, numgrids_x, numgrids_y, x, y, w, h):
     [_x, _y, _w, _h] = DESKTOP_CONFIG[display_id]
     grid_w = _w / numgrids_x
@@ -70,7 +80,7 @@ def remove_maximized(title, wait=True):
     if wait:
         time.sleep(WAIT_SECONDS_WINDOW_MOVE)
 
-if __name__ == '__main__':
+def main_spawn_processes():
     # main ide
     subprocess.Popen(["sh", "start_ide_ghcup.sh"])
 
@@ -93,15 +103,7 @@ if __name__ == '__main__':
     # wait for some seconds
     time.sleep(WAIT_SECONDS_APPS_OPEN)
 
-    # desktop_data = subprocess.run(['wmctrl', '-d'], capture_output=True)
-    # parsed_desktop_data = [re.split(" +", row) for row in desktop_data.stdout.decode().split('\n')]
-
-    # desktop id (str), workarea x (int), workarea y, workarea w (int), workarea h (int)
-    # resolutions = dict([(p[0], [int(p[7].split(',')[0]), int(p[7].split(',')[1]), int(p[8].split('x')[0]), int(p[8].split('x')[1])]) for p in parsed_desktop_data if len(p) >= 9])
-
-    # manually observed origins of the workspace (some weird XFCE/wmctrl bug...)
-    # origins = {'0': [-27, 4], '1': [-27, 4], '2': [-27, 4], '3': [-27, 4]}
-
+def main_placement(single=False):
     # Workspace 0: Blender   TODO: a little bit of danger of misclassification
     desktop = '0'
     switch_desktop(desktop)
@@ -110,7 +112,11 @@ if __name__ == '__main__':
     remove_fullscreen(title)
     remove_maximized(title)
     move_window_workspace(title, desktop)
-    move_window_position(title, calc_config(1, 1, 1, 0, 0, 1, 1))
+    if single:
+        move_window_position(title, calc_config(0, 1, 1, 0, 0, 1, 1))
+    else:
+        make_sticky(title)
+        move_window_position(title, calc_config(1, 1, 1, 0, 0, 1, 1))
     make_fullscreen(title)
 
     # Workspace 1: Debug / Sub Code
@@ -157,20 +163,24 @@ if __name__ == '__main__':
     move_window_position(title, calc_config(0, 1, 1, 0, 0, 1, 1))
     make_fullscreen(title)
 
-    returncode = subprocess.run(["gcc", "-I/usr/include/glib-2.0", "-I/usr/lib/glib-2.0/include", "-lXmu", "-lX11", "-lglib-2.0", "display-switch.c", "-o", "display-switch.o"]).returncode
+    # Turns out that this can be done using add,sticky...
+    """
+    if not single:
+        returncode = subprocess.run(["gcc", "-I/usr/include/glib-2.0", "-I/usr/lib/glib-2.0/include", "-lXmu", "-lX11", "-lglib-2.0", "display-switch.c", "-o", "display-switch.o"]).returncode
 
-    subprocess.run(["killall", "display-switch.o"])
-    subprocess.run(["killall", "display-switch.py"])
-    
-    desktop = '0'
-    switch_desktop(desktop)
-    title = "Display Switch Watch"
-    remove_fullscreen(title)
-    remove_maximized(title)
-    move_window_workspace(title, desktop)
-    move_window_position(title, calc_config(0, 1, 1, 0, 0, 1, 1))
-    
-    if returncode == 0:
-        subprocess.run(["./display-switch.o"])
-    else:
-        subprocess.run(["./display-switch.py"])
+        subprocess.run(["killall", "display-switch.o"])
+        subprocess.run(["killall", "display-switch.py"])
+        
+        desktop = '0'
+        switch_desktop(desktop)
+        title = "Display Switch Watch"
+        remove_fullscreen(title)
+        remove_maximized(title)
+        move_window_workspace(title, desktop)
+        move_window_position(title, calc_config(0, 1, 1, 0, 0, 1, 1))
+        
+        if returncode == 0:
+            subprocess.run(["./display-switch.o"])
+        else:
+            subprocess.run(["./display-switch.py"])
+    """

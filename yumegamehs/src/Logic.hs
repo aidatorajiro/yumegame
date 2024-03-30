@@ -123,7 +123,7 @@ yaruzoo = proc x -> do
 
   let btn_y = case mapMaybe (getJoyBtnValueFor 0 3) sdlEvs of
                   [] -> Nothing
-                  x:xs -> Just x
+                  y:ys -> Just y
 
   -- joy axis 0 (move)
   moveaxis0 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 0) sdlEvs
