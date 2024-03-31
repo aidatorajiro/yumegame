@@ -113,6 +113,10 @@ dropUntil condition =
 commonThreshold :: Int16
 commonThreshold = 2000
 
+pickList :: [a] -> Event a
+pickList [] = NoEvent
+pickList (x:xs) = Event x
+
 yaruzoo :: SF Outerworld Innerworld
 yaruzoo = proc x -> do
   -- fetch outer world values
@@ -121,9 +125,12 @@ yaruzoo = proc x -> do
   let incoming = x ^. incomingMessage
   let move_coeff = 4
 
+  -- y btn process
   let btn_y = case mapMaybe (getJoyBtnValueFor 0 3) sdlEvs of
-                  [] -> Nothing
-                  y:ys -> Just y
+                  [] -> NoEvent
+                  y:ys -> Event y
+
+  let py_torch = fmap (const "place_torch_around()") btn_y
 
   -- joy axis 0 (move)
   moveaxis0 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 0) sdlEvs
@@ -160,15 +167,13 @@ yaruzoo = proc x -> do
   let py_rotate_view_z = fromString . (\(d0, d1) ->
         "rotate_view(0, 0, " <> show (fromIntegral (d1 - d0) / 15000000 :: Double) <> ")") <$> rotaxis_z
 
-  debug_sock_send <- repeatedly 1 "sock_send(b'12345')" -< ()
-
   py_reset_1sec <- repeatedly 1 "reset_distance_of_view()" -< ()
 
-  let debug = [show btn_y | isJust btn_y]
+  let debug = []
 
   -- output results
   py_reload <- now reloadScript -< ()
-  let scr = catEvents [py_reload, py_move_view, py_rotate_view, py_rotate_view_z, py_reset_1sec, py_move_view_z]
+  let scr = catEvents [py_torch, py_reload, py_move_view, py_rotate_view, py_rotate_view_z, py_reset_1sec, py_move_view_z]
   returnA -< Innerworld {
     _script = case scr of
       NoEvent -> []
