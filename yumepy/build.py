@@ -8,9 +8,10 @@ import subprocess
 from util import calculate_env
 import sys
 from threading import Event
+import queue
 
-modified_flag = 1
-modified_flag_up = 0
+job_queue = queue.Queue(1)
+
 current_proc = None
 
 base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -20,8 +21,6 @@ os.chdir(hs_path)
 
 def watch():
     global current_proc
-    global modified_flag
-    global modified_flag_up
 
     logging.basicConfig(level=logging.INFO,
                         format='%(asctime)s - %(message)s',
@@ -29,11 +28,13 @@ def watch():
 
     class MyEventHandler(FileSystemEventHandler):
         def on_modified(self, event) -> None:
-            global modified_flag
 
             if event.src_path.endswith(".hs") or event.src_path.endswith("hsfunctions.py"):
                 logging.info("Modified: %s" % event.src_path)
-                modified_flag += 1
+                try:
+                    job_queue.put((), block=False)
+                except queue.Full:
+                    logging.info("Job queue is full. Ignoring this event.")
 
     logging.info(f'start watching directory {hs_path!r}')
     event_handler = MyEventHandler()
@@ -43,9 +44,10 @@ def watch():
 
     try:
         while True:
-            time.sleep(1)
-            if modified_flag > modified_flag_up:
-                modified_flag_up = modified_flag
+            time.sleep(0.01)
+            if job_queue.full():
+                time.sleep(1)
+                job_queue.get()
                 logging.info("detect modification. running build again...")
                 if current_proc is not None:
                     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
