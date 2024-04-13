@@ -79,8 +79,6 @@ startServer = do
               evs <- SDL.pollEvents
               when (any (\x -> SDL.eventPayload x == evDeviceAdd) evs) reloadJoysticks
 
-              -- unless (null evs) $ print evs
-
               incoming_packets <- atomically $ flushTQueue queue_incoming
 
               return (fromIntegral (toNanoSecs timeDiff) / 1000000000,

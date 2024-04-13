@@ -54,6 +54,7 @@ getJoyAxisValueFor which axis ev = case ev of
   SDL.JoyAxisEvent x@(SDL.JoyAxisEventData w a v) -> if (w == which) && (a == axis) then Just v else Nothing
   _ -> Nothing
 
+-- | obtains button value for specific combination of controller id (`controllerID`) and button id (`buttonID`) from given SDL event `ev`.
 getJoyBtnValueFor :: Int32 -> Word8 -> SDL.EventPayload -> Maybe Int
 getJoyBtnValueFor controllerID buttonID ev = case ev of
     SDL.JoyButtonEvent x@(SDL.JoyButtonEventData c b state) -> if b == buttonID then
@@ -63,6 +64,7 @@ getJoyBtnValueFor controllerID buttonID ev = case ev of
       else Nothing
     _ -> Nothing
 
+-- | obtains hat value for specific combination of controller id (`controllerID`) and hat id (`hatID`) from given SDL event `ev`.
 getJoyHatValueFor :: Int32 -> Word8 -> SDL.JoyHatPosition -> SDL.JoyHatPosition -> SDL.JoyHatPosition -> SDL.EventPayload -> Maybe Int
 getJoyHatValueFor controllerID hatID posForMinusOne posForZero posForOne ev = case ev of
   SDL.JoyHatEvent x@(SDL.JoyHatEventData c h p) ->
@@ -110,13 +112,16 @@ dropUntil condition =
         b <- has_condition_already_met -< x
         returnA -< if b then x else NoEvent
 
+-- | common threshold value for controller axis
 commonThreshold :: Int16
 commonThreshold = 2000
 
+-- | pick the first element of the list and emit it as an `Event`
 pickList :: [a] -> Event a
 pickList [] = NoEvent
 pickList (x:xs) = Event x
 
+-- | Main logic of the game
 yaruzoo :: SF Outerworld Innerworld
 yaruzoo = proc x -> do
   -- fetch outer world values
