@@ -17,6 +17,8 @@ killall -9 vlc
 if [ ! -d /media/pi/d34c487a-24e3-4085-b2ee-3301c757983b ]
 then
 
+sleep 10
+
 setsid ffplay -i rtmp://localhost/live/rpi5dayo -vf crop=1920:1080:0:0 1>/dev/null 2>&1 &
 
 res=1
