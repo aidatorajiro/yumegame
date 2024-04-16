@@ -1,4 +1,12 @@
-MeshroomCache/
-!MeshroomCache/Texturing
+MeshroomCache/CameraInit
+MeshroomCache/DepthMap
+MeshroomCache/DepthMapFilter
+MeshroomCache/FeatureExtraction
+MeshroomCache/FeatureMatching
+MeshroomCache/ImageMatching
+MeshroomCache/MeshFiltering
+MeshroomCache/Meshing
+MeshroomCache/PrepareDenseScene
+MeshroomCache/StructureFromMotion
 .stack-work
 venv
