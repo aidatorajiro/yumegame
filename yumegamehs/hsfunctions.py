@@ -6,10 +6,11 @@ def random_vector():
     offset = mathutils.Vector((random.random(), random.random(), random.random())) - mathutils.Vector((0.5, 0.5, 0.5))
 
 def place_torch_around():
-    r = get_region_3d()
-    offset = random_vector()
-    copy = r.view_location.copy()
-    copy += offset
+    #r = get_region_3d()
+    #offset = random_vector()
+    #copy = r.view_location.copy()
+    #copy += offset
+    print("place_torch_around")
 
 def get_collection():
     return bpy.data.collections.new("YumegameCollection")

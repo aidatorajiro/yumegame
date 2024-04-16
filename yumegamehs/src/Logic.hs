@@ -28,6 +28,7 @@ import Data.Word (Word8)
 import Data.Int (Int32, Int16)
 import Data.String (IsString(fromString))
 import Data.String.QQ
+import GHC.Num (Natural(NB))
 
 data Outerworld = Outerworld { _scriptReturns :: [(Int, S.ByteString)], _sdlEvents :: [SDL.Event], _incomingMessage :: [S.ByteString] }
 $(makeLenses ''Outerworld)
@@ -133,7 +134,7 @@ yaruzoo = proc x -> do
   -- y btn process
   let btn_y = case mapMaybe (getJoyBtnValueFor 0 3) sdlEvs of
                   [] -> NoEvent
-                  y:ys -> Event y
+                  y:ys -> if y == 1 then Event y else NoEvent
 
   let py_torch = fmap (const "place_torch_around()") btn_y
 

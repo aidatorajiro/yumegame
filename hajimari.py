@@ -20,7 +20,6 @@ xfce4-session 4.18.3-1
 xfce4-terminal 1.1.3-1
 """
 
-
 import subprocess
 import os
 import time
@@ -98,6 +97,8 @@ def remove_maximized(title, classname, wait=True):
         time.sleep(WAIT_SECONDS_WINDOW_MOVE)
 
 def main_spawn_processes():
+    os.chdir(base_path)
+
     # main ide
     subprocess.Popen(["setsid", "obs"], stdout=subprocess.DEVNULL, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 

@@ -12,6 +12,8 @@ import queue
 
 job_queue = queue.Queue(1)
 
+job_queue.put(())
+
 current_proc = None
 
 base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
