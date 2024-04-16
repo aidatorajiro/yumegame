@@ -47,7 +47,9 @@ startServer = do
 
   joystickRef <- newIORef Nothing
 
-  SDL.initialize [SDL.InitGameController, SDL.InitJoystick, SDL.InitAudio]
+  evQueue <- newTQueueIO
+
+  SDL.initializeAll
 
   _ <- forkIO (runTCPServer (Just "127.0.0.1") "3171" (\s -> do
         msg <- recv s 4096
@@ -61,11 +63,13 @@ startServer = do
           j <- SDL.openJoystick ((Vector.!) joysticks globalJoystickIndex)
           writeIORef joystickRef (Just j)
 
+  mainwindow <- SDL.createWindow "yumegame window" SDL.defaultWindow
+
   let talk s = do
         timeRef <- newIORef =<< getTime Monotonic
         queue_incoming <- atomically newTQueue
 
-        putStrLn "Connected"
+        --putStrLn "Connected"
 
         _ <- forkIO $ forever $ do
           msg <- recv s 4096
@@ -76,7 +80,8 @@ startServer = do
               timeDiff <- liftA2 (-) (getTime Monotonic) (readIORef timeRef)
               writeIORef timeRef =<< getTime Monotonic
 
-              evs <- SDL.pollEvents
+              evss <- atomically $ flushTQueue evQueue
+              let evs = concat evss
               when (any (\x -> SDL.eventPayload x == evDeviceAdd) evs) reloadJoysticks
 
               incoming_packets <- atomically $ flushTQueue queue_incoming
@@ -88,7 +93,7 @@ startServer = do
               let mes = map (createMessage 1) (inner ^. script) <> map (createMessage 0) (inner ^. pingMessage)
               sendAll s (S.concat mes)
               threadDelay 16666
-              mapM_ putStrLn (inner ^. debugPrints)
+              --mapM_ putStrLn (inner ^. debugPrints)
               return False)
             yaruzoo
         return ()
@@ -96,11 +101,18 @@ startServer = do
   _ <- forkIO (runTCPServer (Just "127.0.0.1") "3170" talk)
 
   let mainLoop = do
-        threadDelay 1000000
+        evs <- SDL.pollEvents
+        atomically (writeTQueue evQueue evs)
+        threadDelay 16666
+        when (any (\x -> case SDL.eventPayload x of 
+              SDL.QuitEvent -> True
+              _ -> False) evs) (writeIORef shutdownRef True)
         shutdown <- readIORef shutdownRef
         unless shutdown mainLoop
 
   mainLoop
+
+  SDL.destroyWindow mainwindow
 
   SDL.quit
 

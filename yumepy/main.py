@@ -6,6 +6,7 @@ import glob
 import socket
 import struct
 import time
+import platform
 from threading import Event
 
 # init project info
@@ -16,7 +17,10 @@ hs_path = os.path.join(proj_path, "yumegamehs")
 venv_path = os.path.join(proj_path, "venv")
 
 # init project info
-package_path = glob.glob(os.path.join(venv_path, "lib", "python*", "site-packages"))[0]
+if "Windows" in platform.platform():
+    package_path = glob.glob(os.path.join(venv_path, "Lib", "site-packages"))[0]
+else:
+    package_path = glob.glob(os.path.join(venv_path, "lib", "python*", "site-packages"))[0]
 orig_python_path = sys.executable
 venv_python_path = os.path.join(venv_path, "bin", "python")
 venv_pip_path = os.path.join(venv_path, "bin", "pip")

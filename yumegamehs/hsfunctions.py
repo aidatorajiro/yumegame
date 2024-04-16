@@ -2,6 +2,9 @@ import mathutils
 import struct
 import random
 
+def debugprint(x):
+    print(x)
+
 def random_vector():
     offset = mathutils.Vector((random.random(), random.random(), random.random())) - mathutils.Vector((0.5, 0.5, 0.5))
 

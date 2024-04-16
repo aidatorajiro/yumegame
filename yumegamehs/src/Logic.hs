@@ -29,6 +29,8 @@ import Data.Int (Int32, Int16)
 import Data.String (IsString(fromString))
 import Data.String.QQ
 import GHC.Num (Natural(NB))
+import qualified System.Info as SI
+import qualified Data.String as S
 
 data Outerworld = Outerworld { _scriptReturns :: [(Int, S.ByteString)], _sdlEvents :: [SDL.Event], _incomingMessage :: [S.ByteString] }
 $(makeLenses ''Outerworld)
@@ -122,6 +124,23 @@ pickList :: [a] -> Event a
 pickList [] = NoEvent
 pickList (x:xs) = Event x
 
+convertHalfAxis :: SF (Event Int16, Event Int16) (Event (Int, Int))
+convertHalfAxis = proc (rotaxis2, rotaxis3) -> do
+  let axis_offset i = fromIntegral i + 32768 :: Int
+  rotaxis2' <- dropUntil (<(-32768 + commonThreshold)) -< rotaxis2
+  rotaxis3' <- dropUntil (<(-32768 + commonThreshold)) -< rotaxis3
+  let rotaxis_z = pairAbsThreshold' (axis_offset <$> rotaxis2') (axis_offset <$> rotaxis3') (fromIntegral commonThreshold)
+  returnA -< rotaxis_z
+
+movaxisPreset :: (Word8, Word8)
+movaxisPreset = if SI.os == "mingw32" then (0, 1) else (0, 1)
+
+rotaxisXYPreset :: (Word8, Word8)
+rotaxisXYPreset = if SI.os == "mingw32" then (2, 3) else (3, 4)
+
+rotaxisZPreset :: (Word8, Word8)
+rotaxisZPreset = if SI.os == "mingw32" then (4, 5) else (2, 5)
+
 -- | Main logic of the game
 yaruzoo :: SF Outerworld Innerworld
 yaruzoo = proc x -> do
@@ -139,8 +158,8 @@ yaruzoo = proc x -> do
   let py_torch = fmap (const "place_torch_around()") btn_y
 
   -- joy axis 0 (move)
-  moveaxis0 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 0) sdlEvs
-  moveaxis1 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 1) sdlEvs
+  moveaxis0 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 (fst movaxisPreset)) sdlEvs
+  moveaxis1 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 (snd movaxisPreset)) sdlEvs
 
   let movaxis = pairAbsThreshold moveaxis0 moveaxis1 commonThreshold
 
@@ -154,32 +173,32 @@ yaruzoo = proc x -> do
         | otherwise = Event $ fromString $ "move_view(0, " <> show (fromIntegral hataxis0 / 2000 * move_coeff :: Double) <> ", 0)"
 
   -- joy axis 0 (rotate)
-  rotaxis0 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 3) sdlEvs
-  rotaxis1 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 4) sdlEvs
+  rotaxis0 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 (fst rotaxisXYPreset)) sdlEvs
+  rotaxis1 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 (snd rotaxisXYPreset)) sdlEvs
 
-  rotaxis2 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 2) sdlEvs
-  rotaxis3 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 5) sdlEvs
+  rotaxis2 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 (fst rotaxisZPreset)) sdlEvs
+  rotaxis3 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 (snd rotaxisZPreset)) sdlEvs
 
-  rotaxis2' <- dropUntil (<(-32768 + commonThreshold)) -< rotaxis2
-  rotaxis3' <- dropUntil (<(-32768 + commonThreshold)) -< rotaxis3
+  rotaxis_z <- convertHalfAxis -< (rotaxis2, rotaxis3)
+  -- let rotaxis_z_noconv = bimap fromIntegral fromIntegral <$> pairAbsThreshold rotaxis2 rotaxis3 commonThreshold
 
   let rotaxis_xy = pairAbsThreshold rotaxis0 rotaxis1 commonThreshold
 
   let py_rotate_view = fromString . (\(d0, d1) ->
         "rotate_view(" <> show (fromIntegral d1 / (-15000000) :: Double) <> ", " <> show (fromIntegral d0 / (-15000000) :: Double) <> ", 0)") <$> rotaxis_xy
 
-  let axis_offset i = fromIntegral i + 32768 :: Int
-  let rotaxis_z = pairAbsThreshold' (axis_offset <$> rotaxis2') (axis_offset <$> rotaxis3') (fromIntegral commonThreshold)
   let py_rotate_view_z = fromString . (\(d0, d1) ->
         "rotate_view(0, 0, " <> show (fromIntegral (d1 - d0) / 15000000 :: Double) <> ")") <$> rotaxis_z
 
   py_reset_1sec <- repeatedly 1 "reset_distance_of_view()" -< ()
 
+  let py_debug = if null sdlEvs then NoEvent else Event ("debugprint('''" <> S.fromString (show sdlEvs) <> "''')")
+
   let debug = []
 
   -- output results
   py_reload <- now reloadScript -< ()
-  let scr = catEvents [py_torch, py_reload, py_move_view, py_rotate_view, py_rotate_view_z, py_reset_1sec, py_move_view_z]
+  let scr = catEvents [py_debug, py_torch, py_reload, py_move_view, py_rotate_view, py_rotate_view_z, py_reset_1sec, py_move_view_z]
   returnA -< Innerworld {
     _script = case scr of
       NoEvent -> []
