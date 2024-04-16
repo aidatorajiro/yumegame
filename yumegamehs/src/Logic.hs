@@ -192,7 +192,8 @@ yaruzoo = proc x -> do
 
   py_reset_1sec <- repeatedly 1 "reset_distance_of_view()" -< ()
 
-  let py_debug = if null sdlEvs then NoEvent else Event ("debugprint('''" <> S.fromString (show sdlEvs) <> "''')")
+  -- let py_debug = if null sdlEvs then NoEvent else Event ("debugprint('''" <> S.fromString (show sdlEvs) <> "''')")
+  let py_debug = NoEvent
 
   let debug = []
 
