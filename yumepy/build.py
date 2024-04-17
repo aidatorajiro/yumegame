@@ -65,7 +65,11 @@ def watch():
                 if retcode == 0:
                     current_proc = run()
                     time.sleep(3)
-                    subprocess.run(["wmctrl", "-x", "-r", "yumegamehs-exe.yumegamehs-exe", "-t", "0"])
+                    if os.environ.get("SINGLE_MODE") is not None:
+                        subprocess.run(["wmctrl", "-x", "-r", "yumegamehs-exe.yumegamehs-exe", "-t", "0"])
+                    else:
+                        subprocess.run(["wmctrl", "-x", "-r", "yumegamehs-exe.yumegamehs-exe", "-b", "add,sticky"])
+                        subprocess.run(["wmctrl", "-x", "-r", "yumegamehs-exe.yumegamehs-exe", "-e", "0,2880,540,300,300"])
                     subprocess.run(["wmctrl", "-x", "-r", "yumegamehs-exe.yumegamehs-exe", "-b", "add,above"])
     finally:
         observer.stop()
