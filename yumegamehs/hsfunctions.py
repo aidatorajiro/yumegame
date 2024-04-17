@@ -15,6 +15,9 @@ def place_torch_around():
     #copy += offset
     print("place_torch_around")
 
+def save_blend():
+    bpy.ops.wm.save_as_mainfile(filepath=bpy.data.filepath)
+
 def get_collection():
     return bpy.data.collections.new("YumegameCollection")
 
