@@ -39,6 +39,7 @@ library
     , binary
     , bytestring
     , clock
+    , extra
     , json
     , lens
     , network
@@ -62,6 +63,7 @@ executable yumegamehs-exe
     , binary
     , bytestring
     , clock
+    , extra
     , json
     , lens
     , network
@@ -87,6 +89,7 @@ test-suite yumegamehs-test
     , binary
     , bytestring
     , clock
+    , extra
     , json
     , lens
     , network

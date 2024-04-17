@@ -25,6 +25,9 @@ import Control.Concurrent.STM.TQueue
 import Control.Concurrent.STM
 import SDL (InitFlag(InitJoystick), WindowConfig (..))
 import Control.Applicative (liftA2)
+import Extra (whenMaybe)
+import qualified System.Info as SI
+import Data.Maybe (isJust, fromJust)
 
 createMessage :: Int64 -> S.ByteString -> S.ByteString
 createMessage messageType messageBytes = S.toStrict (
@@ -63,9 +66,9 @@ startServer = do
           j <- SDL.openJoystick ((Vector.!) joysticks globalJoystickIndex)
           writeIORef joystickRef (Just j)
 
-  mainwindow <- SDL.createWindow "yumegame window" (SDL.WindowConfig {windowBorder = True, windowHighDPI = False, windowInputGrabbed = False, windowMode = SDL.Windowed, windowGraphicsContext = SDL.OpenGLContext SDL.defaultOpenGL, windowPosition = SDL.Centered, windowResizable = False, windowInitialSize = SDL.V2 250 60, windowVisible = True})
+  mainwindow <- whenMaybe (SI.os /= "linux") (SDL.createWindow "yumegame window" (SDL.WindowConfig {windowBorder = True, windowHighDPI = False, windowInputGrabbed = False, windowMode = SDL.Windowed, windowGraphicsContext = SDL.OpenGLContext SDL.defaultOpenGL, windowPosition = SDL.Centered, windowResizable = False, windowInitialSize = SDL.V2 250 60, windowVisible = True}))
 
-  renderer <- SDL.createRenderer mainwindow (-1) SDL.defaultRenderer
+  renderer <- whenMaybe (isJust mainwindow) (SDL.createRenderer (fromJust mainwindow) (-1) SDL.defaultRenderer)
 
   let talk s = do
         timeRef <- newIORef =<< getTime Monotonic
@@ -106,10 +109,11 @@ startServer = do
         evs <- SDL.pollEvents
         atomically (writeTQueue evQueue evs)
         threadDelay 16666
-        SDL.rendererDrawColor renderer SDL.$= SDL.V4 255 255 255 255
-        SDL.clear renderer
-        SDL.present renderer
-        when (any (\x -> case SDL.eventPayload x of 
+        when (isJust renderer) $ do
+          SDL.rendererDrawColor (fromJust renderer) SDL.$= SDL.V4 255 255 255 255
+          SDL.clear (fromJust renderer)
+          SDL.present (fromJust renderer)
+        when (any (\x -> case SDL.eventPayload x of
               SDL.QuitEvent -> True
               _ -> False) evs) (writeIORef shutdownRef True)
         shutdown <- readIORef shutdownRef
@@ -117,9 +121,9 @@ startServer = do
 
   mainLoop
 
-  SDL.destroyRenderer renderer
-
-  SDL.destroyWindow mainwindow
+  when (isJust renderer) $ do
+    SDL.destroyRenderer (fromJust renderer)
+    SDL.destroyWindow (fromJust mainwindow)
 
   SDL.quit
 

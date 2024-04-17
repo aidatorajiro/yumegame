@@ -33,6 +33,7 @@ dependencies:
 - template-haskell
 - string-qq
 - json
+- extra
 
 ghc-options:
 - -Wall
