@@ -106,7 +106,7 @@ def remove_maximized(title, classname, wait=True):
     if wait:
         time.sleep(WAIT_SECONDS_WINDOW_MOVE)
 
-def main_spawn_processes():
+def main_spawn_processes(single=False):
     os.chdir(base_path)
 
     # main ide
@@ -122,7 +122,12 @@ def main_spawn_processes():
     subprocess.Popen(["setsid", "firefox", "-P", "yumegame develop"], stdout=subprocess.DEVNULL, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     # build log console
-    subprocess.Popen([TERMINAL, "--command=sh ./start_watch_ghcup.sh", "--title=YUME develop: console A"])
+    envcopy = os.environ.copy()
+    if single:
+        envcopy["DEV_MODE"] = "SINGLE"
+    else:
+        envcopy["DEV_MODE"] = "MULTI"
+    subprocess.Popen([TERMINAL, "--command=sh ./start_watch_ghcup.sh", "--title=YUME develop: console A"], env=envcopy)
 
     # runtime log console
     subprocess.Popen([TERMINAL, "--command=blender main-develop.blend -P startup.py", "--title=YUME develop: console B"])
@@ -144,7 +149,7 @@ def place_blender(desktop, single):
         move_window_position(title, classname, calc_config(0, 1, 1, 0, 0, 1, 1))
     else:
         make_sticky(title, classname)
-        move_window_position(title, classname, calc_config(1, 1, 1, 0, 0, 1, 1))
+        move_window_position(title, classname, calc_config(0, 1, 1, 0, 0, 1, 1))
     make_fullscreen(title, classname)
 
     # wmctrl -x -r yumegamehs-exe.yumegamehs-exe -b add,above
@@ -155,55 +160,73 @@ def place_blender(desktop, single):
         make_sticky(title, classname)
     make_above(title, classname)
 
-def place_console_a(desktop):
+def place_console_a(desktop, single):
     title = "YUME develop: console A"
     classname = False
     remove_fullscreen(title, classname)
     remove_maximized(title, classname)
     move_window_workspace(title, classname, desktop)
-    move_window_position(title, classname, calc_config(0, 2, 2, 0, 0, 1, 1))
+    if single:
+        move_window_position(title, classname, calc_config(0, 2, 2, 0, 0, 1, 1))
+    else:
+        move_window_position(title, classname, calc_config(1, 2, 2, 0, 0, 1, 1))
 
-def place_console_b(desktop):
+def place_console_b(desktop, single):
     title = "YUME develop: console B"
     classname = False
     remove_fullscreen(title, classname)
     remove_maximized(title, classname)
     move_window_workspace(title, classname, desktop)
-    move_window_position(title, classname, calc_config(0, 2, 2, 0, 1, 1, 1))
+    if single:
+        move_window_position(title, classname, calc_config(0, 2, 2, 0, 1, 1, 1))
+    else:
+        move_window_position(title, classname, calc_config(1, 2, 2, 0, 1, 1, 1))
 
-def place_code_devenv(desktop):
+def place_code_devenv(desktop, single):
     title = "yumegame - Visual Studio Code"
     classname = False
     remove_fullscreen(title, classname)
     remove_maximized(title, classname)
     move_window_workspace(title, classname, desktop)
-    move_window_position(title, classname, calc_config(0, 2, 2, 1, 0, 1, 2))
+    if single:
+        move_window_position(title, classname, calc_config(0, 2, 2, 1, 0, 1, 2))
+    else:
+        move_window_position(title, classname, calc_config(1, 2, 2, 1, 0, 1, 2))
 
-def place_code_hs(desktop):
+def place_code_hs(desktop, single):
     title = "yumegamehs - Visual Studio Code"
     classname = False
     remove_fullscreen(title, classname)
     remove_maximized(title, classname)
     move_window_workspace(title, classname, desktop)
-    move_window_position(title, classname, calc_config(0, 1, 1, 0, 0, 1, 1))
+    if single:
+        move_window_position(title, classname, calc_config(0, 1, 1, 0, 0, 1, 1))
+    else:
+        move_window_position(title, classname, calc_config(1, 1, 1, 0, 0, 1, 1))
     make_fullscreen(title, classname)
 
-def place_ff(desktop):
+def place_ff(desktop, single):
     title = "Navigator.firefox"
     classname = True
     remove_fullscreen(title, classname)
     remove_maximized(title, classname)
     move_window_workspace(title, classname, desktop)
-    move_window_position(title, classname, calc_config(0, 1, 1, 0, 0, 1, 1))
+    if single:
+        move_window_position(title, classname, calc_config(0, 1, 1, 0, 0, 1, 1))
+    else:
+        move_window_position(title, classname, calc_config(1, 1, 1, 0, 0, 1, 1))
     make_fullscreen(title, classname)
 
-def place_obs(desktop):
+def place_obs(desktop, single):
     title = "obs.obs"
     classname = True
     remove_fullscreen(title, classname)
     remove_maximized(title, classname)
     move_window_workspace(title, classname, desktop)
-    move_window_position(title, classname, calc_config(0, 1, 1, 0, 0, 1, 1))
+    if single:
+        move_window_position(title, classname, calc_config(0, 1, 1, 0, 0, 1, 1))
+    else:
+        move_window_position(title, classname, calc_config(1, 1, 1, 0, 0, 1, 1))
     make_fullscreen(title, classname)
 
 def main_placement(single=False):
@@ -215,23 +238,23 @@ def main_placement(single=False):
     # Workspace 1: Debug / Sub Code
     desktop = '1'
     switch_desktop(desktop)
-    place_console_a(desktop)
-    place_console_b(desktop)
-    place_code_devenv(desktop)
+    place_console_a(desktop, single)
+    place_console_b(desktop, single)
+    place_code_devenv(desktop, single)
 
     # Workspace 2: Main Code
     desktop = '2'
     switch_desktop(desktop)
-    place_code_hs(desktop)
+    place_code_hs(desktop, single)
 
     # Workspace 3: Browse   TODO: a little bit of danger of misclassification
     desktop = '3'
     switch_desktop(desktop)
-    place_ff(desktop)
+    place_ff(desktop, single)
 
     desktop = '4'
     switch_desktop(desktop)
-    place_obs(desktop)
+    place_obs(desktop, single)
 
     # Turns out that this can be done using add,sticky...
     """
