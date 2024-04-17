@@ -66,11 +66,12 @@ def watch():
                     current_proc = run()
                     time.sleep(3)
                     if os.environ.get("DEV_MODE") == "MULTI":
+                        subprocess.run(["wmctrl", "-x", "-r", "yumegamehs-exe.yumegamehs-exe", "-b", "add,above"])
                         subprocess.run(["wmctrl", "-x", "-r", "yumegamehs-exe.yumegamehs-exe", "-b", "add,sticky"])
-                        subprocess.run(["wmctrl", "-x", "-r", "yumegamehs-exe.yumegamehs-exe", "-e", "0,2880,540,300,300"])
+                        subprocess.run(["wmctrl", "-x", "-r", "yumegamehs-exe.yumegamehs-exe", "-e", "0,960,540,300,300"])
                     else:
                         subprocess.run(["wmctrl", "-x", "-r", "yumegamehs-exe.yumegamehs-exe", "-t", "0"])
-                    subprocess.run(["wmctrl", "-x", "-r", "yumegamehs-exe.yumegamehs-exe", "-b", "add,above"])
+                        subprocess.run(["wmctrl", "-x", "-r", "yumegamehs-exe.yumegamehs-exe", "-b", "add,above"])
     finally:
         observer.stop()
         observer.join()
