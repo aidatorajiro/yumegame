@@ -23,7 +23,7 @@ import Logic
 import Control.Lens
 import Control.Concurrent.STM.TQueue
 import Control.Concurrent.STM
-import SDL (InitFlag(InitJoystick))
+import SDL (InitFlag(InitJoystick), WindowConfig (..))
 import Control.Applicative (liftA2)
 
 createMessage :: Int64 -> S.ByteString -> S.ByteString
@@ -63,7 +63,9 @@ startServer = do
           j <- SDL.openJoystick ((Vector.!) joysticks globalJoystickIndex)
           writeIORef joystickRef (Just j)
 
-  mainwindow <- SDL.createWindow "yumegame window" SDL.defaultWindow
+  mainwindow <- SDL.createWindow "yumegame window" (SDL.WindowConfig {windowBorder = True, windowHighDPI = False, windowInputGrabbed = False, windowMode = SDL.Windowed, windowGraphicsContext = SDL.OpenGLContext SDL.defaultOpenGL, windowPosition = SDL.Centered, windowResizable = False, windowInitialSize = SDL.V2 250 60, windowVisible = True})
+
+  renderer <- SDL.createRenderer mainwindow (-1) SDL.defaultRenderer
 
   let talk s = do
         timeRef <- newIORef =<< getTime Monotonic
@@ -104,6 +106,9 @@ startServer = do
         evs <- SDL.pollEvents
         atomically (writeTQueue evQueue evs)
         threadDelay 16666
+        SDL.rendererDrawColor renderer SDL.$= SDL.V4 255 255 255 255
+        SDL.clear renderer
+        SDL.present renderer
         when (any (\x -> case SDL.eventPayload x of 
               SDL.QuitEvent -> True
               _ -> False) evs) (writeIORef shutdownRef True)
@@ -111,6 +116,8 @@ startServer = do
         unless shutdown mainLoop
 
   mainLoop
+
+  SDL.destroyRenderer renderer
 
   SDL.destroyWindow mainwindow
 

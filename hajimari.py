@@ -60,6 +60,16 @@ def make_fullscreen(title, classname, wait=True):
     if wait:
         time.sleep(WAIT_SECONDS_WINDOW_MOVE)
 
+def make_above(title, classname, wait=True):
+    subprocess.run(["wmctrl"] + class_option(classname) + ["-r", title, "-b", "add,above"])
+    if wait:
+        time.sleep(WAIT_SECONDS_WINDOW_MOVE)
+
+def remove_above(title, classname, wait=True):
+    subprocess.run(["wmctrl"] + class_option(classname) + ["-r", title, "-b", "remove,above"])
+    if wait:
+        time.sleep(WAIT_SECONDS_WINDOW_MOVE)
+
 def remove_fullscreen(title, classname, wait=True):
     subprocess.run(["wmctrl"] + class_option(classname) + ["-r", title, "-b", "remove,fullscreen"])
     if wait:
@@ -115,7 +125,7 @@ def main_spawn_processes():
     subprocess.Popen([TERMINAL, "--command=sh ./start_watch_ghcup.sh", "--title=YUME develop: console A"])
 
     # runtime log console
-    subprocess.Popen([TERMINAL, "--command=blender", "--title=YUME develop: console B"])
+    subprocess.Popen([TERMINAL, "--command=blender main-develop.blend -P startup.py", "--title=YUME develop: console B"])
 
     # copy to clipboard
     with open('startup.py') as f:
@@ -136,6 +146,14 @@ def place_blender(desktop, single):
         make_sticky(title, classname)
         move_window_position(title, classname, calc_config(1, 1, 1, 0, 0, 1, 1))
     make_fullscreen(title, classname)
+
+    # wmctrl -x -r yumegamehs-exe.yumegamehs-exe -b add,above
+    title = "yumegamehs-exe.yumegamehs-exe"
+    classname = True
+    move_window_workspace(title, classname, desktop)
+    if not single:
+        make_sticky(title, classname)
+    make_above(title, classname)
 
 def place_console_a(desktop):
     title = "YUME develop: console A"

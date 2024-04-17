@@ -64,6 +64,9 @@ def watch():
                 retcode = build().wait()
                 if retcode == 0:
                     current_proc = run()
+                    time.sleep(3)
+                    subprocess.run(["wmctrl", "-x", "-r", "yumegamehs-exe.yumegamehs-exe", "-t", "0"])
+                    subprocess.run(["wmctrl", "-x", "-r", "yumegamehs-exe.yumegamehs-exe", "-b", "add,above"])
     finally:
         observer.stop()
         observer.join()
