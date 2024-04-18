@@ -139,7 +139,7 @@ rotaxisXYPreset :: (Word8, Word8)
 rotaxisXYPreset = if SI.os == "mingw32" then (2, 3) else (3, 4)
 
 rotaxisZPreset :: (Word8, Word8)
-rotaxisZPreset = if SI.os == "mingw32" then (4, 5) else (2, 5)
+rotaxisZPreset = if SI.os == "mingw32" then (5, 4) else (5, 2)
 
 -- | Main logic of the game
 yaruzoo :: SF Outerworld Innerworld
@@ -190,7 +190,8 @@ yaruzoo = proc x -> do
   let py_rotate_view_z = fromString . (\(d0, d1) ->
         "rotate_view(0, 0, " <> show (fromIntegral (d1 - d0) / 15000000 :: Double) <> ")") <$> rotaxis_z
 
-  py_reset_1sec <- repeatedly 1 "reset_distance_of_view()" -< ()
+  --py_reset_1sec <- repeatedly 1 "reset_distance_of_view()" -< ()
+  py_reset_1sec <- repeatedly 1 "()" -< ()
 
   py_save <- repeatedly 900 "save_blend()" -< ()
 

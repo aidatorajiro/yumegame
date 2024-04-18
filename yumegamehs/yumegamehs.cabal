@@ -27,7 +27,7 @@ library
   exposed-modules:
       Lib
       Logic
-      TH
+      Sound
   other-modules:
       Paths_yumegamehs
   hs-source-dirs:

@@ -25,7 +25,7 @@ import Control.Concurrent.STM.TQueue
 import Control.Concurrent.STM
 import SDL (InitFlag(InitJoystick), WindowConfig (..))
 import Control.Applicative (liftA2)
-import Extra (whenMaybe)
+import Control.Monad.Extra (whenMaybe)
 import qualified System.Info as SI
 import Data.Maybe (isJust, fromJust)
 
@@ -66,7 +66,7 @@ startServer = do
           j <- SDL.openJoystick ((Vector.!) joysticks globalJoystickIndex)
           writeIORef joystickRef (Just j)
 
-  mainwindow <- whenMaybe (SI.os /= "linux") (SDL.createWindow "yumegame window" (SDL.WindowConfig {windowBorder = True, windowHighDPI = False, windowInputGrabbed = False, windowMode = SDL.Windowed, windowGraphicsContext = SDL.OpenGLContext SDL.defaultOpenGL, windowPosition = SDL.Centered, windowResizable = False, windowInitialSize = SDL.V2 250 60, windowVisible = True}))
+  mainwindow <- whenMaybe (SI.os == "mingw32") (SDL.createWindow "yumegame window" (SDL.WindowConfig {windowBorder = True, windowHighDPI = False, windowInputGrabbed = False, windowMode = SDL.Windowed, windowGraphicsContext = SDL.OpenGLContext SDL.defaultOpenGL, windowPosition = SDL.Centered, windowResizable = False, windowInitialSize = SDL.V2 250 60, windowVisible = True}))
 
   renderer <- whenMaybe (isJust mainwindow) (SDL.createRenderer (fromJust mainwindow) (-1) SDL.defaultRenderer)
 
@@ -114,8 +114,8 @@ startServer = do
           SDL.clear (fromJust renderer)
           SDL.present (fromJust renderer)
         when (any (\x -> case SDL.eventPayload x of
-              SDL.QuitEvent -> True
-              _ -> False) evs) (writeIORef shutdownRef True)
+          SDL.QuitEvent -> True
+          _ -> False) evs) (writeIORef shutdownRef True)
         shutdown <- readIORef shutdownRef
         unless shutdown mainLoop
 
