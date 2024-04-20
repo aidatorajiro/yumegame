@@ -59,9 +59,10 @@ startServer = do
 
   soundQueue <- newTQueueIO
 
-  
-
   SDL.initializeAll
+
+  forkIO $ do
+    return ()
 
   _ <- forkIO (runTCPServer (Just "127.0.0.1") "3171" (\s -> do
         msg <- recv s 4096
@@ -122,13 +123,10 @@ startServer = do
     openDeviceChannels = SDL.Mandate SDL.Stereo,
     openDeviceSamples = soundlen,
     openDeviceCallback = \audiotype buf -> do
-      soundData <- concat <$> atomically (flushTQueue soundQueue)
-      let l2 = length soundData
-      let l1 = fromIntegral soundlen - l2
-      let soundData' = replicate l1 0 ++ soundData
+      soundData <- atomically (flushTQueue soundQueue)
+      let soundData' = if null soundData then replicate (fromIntegral soundlen) 0 else head soundData
       case audiotype of
-        SDL.Signed16BitLEAudio ->
-          mapM_ (\i -> write buf i (fromIntegral $ soundData' !! i)) [0..fromIntegral soundlen - 1]
+        SDL.Signed16BitLEAudio -> mapM_ (\i -> write buf i (fromIntegral $ soundData' !! i)) [0..fromIntegral soundlen - 1]
         _ -> return ()
       return (),
     openDeviceUsage = SDL.ForPlayback,
