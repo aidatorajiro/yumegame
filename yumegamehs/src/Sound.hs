@@ -6,10 +6,10 @@ import Control.Lens.TH
 import Control.Lens
 import FRP.Yampa
 
-data SoundInput = SoundInput { _command :: Int }
+data SoundInput = SoundInput { _initialState :: Int, _command :: Int }
 $(makeLenses ''SoundInput)
 
-data SoundOutput = SoundOutput { _sound :: [Int] }
+data SoundOutput = SoundOutput { _latestState :: Int, _sound :: [Int] }
 $(makeLenses ''SoundOutput)
 
 soundSystem :: SF SoundInput SoundOutput

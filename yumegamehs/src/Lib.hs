@@ -1,5 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Arrows #-}
+{-# LANGUAGE MonoLocalBinds #-}
+
 {-# OPTIONS_GHC -Wno-unused-matches #-}
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 {-# OPTIONS_GHC -Wno-unused-imports #-}
@@ -23,11 +25,12 @@ import Logic
 import Control.Lens
 import Control.Concurrent.STM.TQueue
 import Control.Concurrent.STM
-import SDL (InitFlag(InitJoystick), WindowConfig (..))
+import SDL (InitFlag(InitJoystick), WindowConfig (..), OpenDeviceSpec (..))
 import Control.Applicative (liftA2)
 import Control.Monad.Extra (whenMaybe)
 import qualified System.Info as SI
 import Data.Maybe (isJust, fromJust)
+import Data.Vector.Storable.Mutable (write)
 
 createMessage :: Int64 -> S.ByteString -> S.ByteString
 createMessage messageType messageBytes = S.toStrict (
@@ -46,11 +49,17 @@ evDeviceRemoved = SDL.JoyDeviceEvent (SDL.JoyDeviceEventData SDL.JoyDeviceRemove
 
 startServer :: IO ()
 startServer = do
+  let soundlen = 4096
+
   shutdownRef <- newIORef False
 
   joystickRef <- newIORef Nothing
 
   evQueue <- newTQueueIO
+
+  soundQueue <- newTQueueIO
+
+  
 
   SDL.initializeAll
 
@@ -99,11 +108,34 @@ startServer = do
               sendAll s (S.concat mes)
               threadDelay 16666
               --mapM_ putStrLn (inner ^. debugPrints)
+              unless (null $ inner ^. sound) $ do
+                atomically (writeTQueue soundQueue (inner ^. sound))
               return False)
             yaruzoo
         return ()
 
   _ <- forkIO (runTCPServer (Just "127.0.0.1") "3170" talk)
+
+  (audiodevice, audiospec) <- SDL.openAudioDevice (SDL.OpenDeviceSpec {
+    openDeviceFreq = SDL.Mandate 44100,
+    openDeviceFormat = SDL.Mandate SDL.Signed16BitLEAudio,
+    openDeviceChannels = SDL.Mandate SDL.Stereo,
+    openDeviceSamples = soundlen,
+    openDeviceCallback = \audiotype buf -> do
+      soundData <- concat <$> atomically (flushTQueue soundQueue)
+      let l2 = length soundData
+      let l1 = fromIntegral soundlen - l2
+      let soundData' = replicate l1 0 ++ soundData
+      case audiotype of
+        SDL.Signed16BitLEAudio ->
+          mapM_ (\i -> write buf i (fromIntegral $ soundData' !! i)) [0..fromIntegral soundlen - 1]
+        _ -> return ()
+      return (),
+    openDeviceUsage = SDL.ForPlayback,
+    openDeviceName = Nothing
+  })
+
+  SDL.setAudioDevicePlaybackState audiodevice SDL.Play
 
   let mainLoop = do
         evs <- SDL.pollEvents
@@ -124,6 +156,8 @@ startServer = do
   when (isJust renderer) $ do
     SDL.destroyRenderer (fromJust renderer)
     SDL.destroyWindow (fromJust mainwindow)
+
+  SDL.closeAudioDevice audiodevice
 
   SDL.quit
 
