@@ -10,3 +10,4 @@ MeshroomCache/PrepareDenseScene
 MeshroomCache/StructureFromMotion
 .stack-work
 venv
+.git
