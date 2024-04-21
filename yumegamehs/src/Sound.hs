@@ -23,6 +23,9 @@ noiseTest = noise (mkStdGen 21722)
 
 soundSystem :: SF SoundInput SoundOutput
 soundSystem = proc input -> do
-  n <- noiseTest -< ()
-  let n' = (n - 0.5) * 2000
-  returnA -< SoundOutput { _soundOutL = floor n', _soundOutR = floor n' }
+  t <- time -< ()
+  let n1 = sin (t * (2 * pi) * 336) * 3000
+  let n2 = sin (t * (2 * pi) * 450) * 3500
+  let n2 = sin (t * (2 * pi) * 150) * 3500
+  let n = n1 + n2
+  returnA -< SoundOutput { _soundOutL = floor n, _soundOutR = floor n }
