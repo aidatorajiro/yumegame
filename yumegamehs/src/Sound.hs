@@ -18,7 +18,11 @@ $(makeLenses ''SoundInput)
 data SoundOutput = SoundOutput { _soundOutL :: Int, _soundOutR :: Int }
 $(makeLenses ''SoundOutput)
 
+noiseTest :: SF () Double
+noiseTest = noise (mkStdGen 21722)
+
 soundSystem :: SF SoundInput SoundOutput
 soundSystem = proc input -> do
-  let g = mkStdGen 21722
-  returnA -< SoundOutput { _soundOutL = 0, _soundOutR = 0 }
+  n <- noiseTest -< ()
+  let n' = (n - 0.5) * 2000
+  returnA -< SoundOutput { _soundOutL = floor n', _soundOutR = floor n' }
