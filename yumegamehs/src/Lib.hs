@@ -30,7 +30,7 @@ import Control.Applicative (liftA2)
 import Control.Monad.Extra (whenMaybe)
 import qualified System.Info as SI
 import Data.Maybe (isJust, fromJust)
-import Data.Vector.Storable.Mutable (write)
+import qualified Data.Vector.Storable.Mutable as SM
 import Sound
 import Data.Array.MArray
 import Data.Array.IO (IOUArray)
@@ -67,7 +67,7 @@ startServer = do
   SDL.initializeAll
 
   _ <- forkIO $ do
-    current_packet <- newArray (0, soundlen - 1) 0 :: IO (IOUArray Int Int)
+    current_packet <- newArray (0, soundlen * 2 - 1) 0 :: IO (IOUArray Int Int)
     packet_idx <- newIORef (0 :: Int)
     reactimate
       (return initialSoundInput)
@@ -75,9 +75,10 @@ startServer = do
           return (1 / fromIntegral soundfreq, Just initialSoundInput))
       (\is_changed sound_out -> do
           i <- readIORef packet_idx
-          writeArray current_packet i (sound_out ^. soundOut)
-          writeIORef packet_idx (i + 1)
-          when (i + 1 == soundlen) $ do
+          writeArray current_packet i (sound_out ^. soundOutR)
+          writeArray current_packet (i + 1) (sound_out ^. soundOutL)
+          writeIORef packet_idx (i + 2)
+          when (i + 2 == soundlen * 2) $ do
             writeIORef packet_idx 0
             atomically . writeTBQueue soundQueue =<< getElems current_packet
           return False)
@@ -141,9 +142,10 @@ startServer = do
     openDeviceSamples = fromIntegral soundlen,
     openDeviceCallback = \audiotype buf -> do
       soundData <- atomically (flushTBQueue soundQueue)
-      let soundData' = if null soundData then replicate soundlen 0 else head soundData
+      let soundData' = if null soundData then replicate (soundlen * 2) 0 else head soundData
       case audiotype of
-        SDL.Signed16BitLEAudio -> mapM_ (\i -> write buf i (fromIntegral $ soundData' !! i)) [0..soundlen - 1]
+        SDL.Signed16BitLEAudio -> do
+          mapM_ (\i -> SM.write buf i (fromIntegral $ soundData' !! i)) [0..soundlen * 2 - 1]
         _ -> return ()
       return (),
     openDeviceUsage = SDL.ForPlayback,
