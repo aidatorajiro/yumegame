@@ -133,8 +133,8 @@ def main_spawn_processes(single=False):
     subprocess.Popen([TERMINAL, "--command=blender main-develop.blend -P startup.py", "--title=YUME develop: console B"])
 
     # copy to clipboard
-    with open('startup.py') as f:
-        subprocess.run(["xclip", "-selection", "clipboard"], stdin=f)
+    # with open('startup.py') as f:
+    #     subprocess.run(["xclip", "-selection", "clipboard"], stdin=f)
 
     # wait for some seconds
     time.sleep(WAIT_SECONDS_APPS_OPEN)
