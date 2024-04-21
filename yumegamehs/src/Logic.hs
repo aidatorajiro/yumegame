@@ -16,8 +16,7 @@ module Logic (
       script,
       pingMessage,
       timestamp,
-      debugPrints,
-      sound) where
+      debugPrints) where
 
 import qualified SDL
 import qualified Data.ByteString as S
@@ -39,7 +38,7 @@ $(makeLenses ''Outerworld)
 initialOuterworld :: Outerworld
 initialOuterworld = Outerworld { _scriptReturns = [], _sdlEvents = [], _incomingMessage = [] }
 
-data Innerworld = Innerworld { _script :: [S.ByteString], _timestamp :: Double, _pingMessage :: [S.ByteString], _debugPrints :: [String], _sound :: [Int] }
+data Innerworld = Innerworld { _script :: [S.ByteString], _timestamp :: Double, _pingMessage :: [S.ByteString], _debugPrints :: [String] }
 $(makeLenses ''Innerworld)
 
 -- | Obtains the last element from the data flow of list. If there is no such value, signals `NoEvent`.
@@ -198,8 +197,6 @@ yaruzoo = proc x -> do
   -- let py_debug = if null sdlEvs then NoEvent else Event ("debugprint('''" <> S.fromString (show sdlEvs) <> "''')")
   let py_debug = NoEvent
 
-  let debug = []
-
   -- output results
   py_reload <- now reloadScript -< ()
   let scr = catEvents [py_debug, py_torch, py_reload, py_move_view, py_rotate_view, py_rotate_view_z, py_reset_1sec, py_move_view_z]
@@ -209,5 +206,4 @@ yaruzoo = proc x -> do
       Event xs -> xs,
     _timestamp = t,
     _pingMessage = ["p"],
-    _debugPrints = debug,
-    _sound = [] }
+    _debugPrints = [] }

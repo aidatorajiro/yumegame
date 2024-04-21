@@ -31,6 +31,10 @@ import Control.Monad.Extra (whenMaybe)
 import qualified System.Info as SI
 import Data.Maybe (isJust, fromJust)
 import Data.Vector.Storable.Mutable (write)
+import Sound
+import Data.Array.MArray
+import Data.Array.IO (IOUArray)
+import Data.Binary (Word16)
 
 createMessage :: Int64 -> S.ByteString -> S.ByteString
 createMessage messageType messageBytes = S.toStrict (
@@ -49,7 +53,8 @@ evDeviceRemoved = SDL.JoyDeviceEvent (SDL.JoyDeviceEventData SDL.JoyDeviceRemove
 
 startServer :: IO ()
 startServer = do
-  let soundlen = 4096
+  let soundlen = 4096 :: Int
+  let soundfreq = 44100 :: Int
 
   shutdownRef <- newIORef False
 
@@ -57,11 +62,26 @@ startServer = do
 
   evQueue <- newTQueueIO
 
-  soundQueue <- newTQueueIO
+  soundQueue <- newTBQueueIO 1 :: IO (TBQueue [Int])
 
   SDL.initializeAll
 
-  forkIO $ do
+  _ <- forkIO $ do
+    current_packet <- newArray (0, soundlen - 1) 0 :: IO (IOUArray Int Int)
+    packet_idx <- newIORef (0 :: Int)
+    reactimate
+      (return initialSoundInput)
+      (\b -> do
+          return (1 / fromIntegral soundfreq, Just initialSoundInput))
+      (\is_changed sound_out -> do
+          i <- readIORef packet_idx
+          writeArray current_packet i (sound_out ^. soundOut)
+          writeIORef packet_idx (i + 1)
+          when (i + 1 == soundlen) $ do
+            writeIORef packet_idx 0
+            atomically . writeTBQueue soundQueue =<< getElems current_packet
+          return False)
+      soundSystem
     return ()
 
   _ <- forkIO (runTCPServer (Just "127.0.0.1") "3171" (\s -> do
@@ -108,9 +128,6 @@ startServer = do
               let mes = map (createMessage 1) (inner ^. script) <> map (createMessage 0) (inner ^. pingMessage)
               sendAll s (S.concat mes)
               threadDelay 16666
-              --mapM_ putStrLn (inner ^. debugPrints)
-              unless (null $ inner ^. sound) $ do
-                atomically (writeTQueue soundQueue (inner ^. sound))
               return False)
             yaruzoo
         return ()
@@ -118,15 +135,15 @@ startServer = do
   _ <- forkIO (runTCPServer (Just "127.0.0.1") "3170" talk)
 
   (audiodevice, audiospec) <- SDL.openAudioDevice (SDL.OpenDeviceSpec {
-    openDeviceFreq = SDL.Mandate 44100,
+    openDeviceFreq = SDL.Mandate $ fromIntegral soundfreq,
     openDeviceFormat = SDL.Mandate SDL.Signed16BitLEAudio,
     openDeviceChannels = SDL.Mandate SDL.Stereo,
-    openDeviceSamples = soundlen,
+    openDeviceSamples = fromIntegral soundlen,
     openDeviceCallback = \audiotype buf -> do
-      soundData <- atomically (flushTQueue soundQueue)
-      let soundData' = if null soundData then replicate (fromIntegral soundlen) 0 else head soundData
+      soundData <- atomically (flushTBQueue soundQueue)
+      let soundData' = if null soundData then replicate soundlen 0 else head soundData
       case audiotype of
-        SDL.Signed16BitLEAudio -> mapM_ (\i -> write buf i (fromIntegral $ soundData' !! i)) [0..fromIntegral soundlen - 1]
+        SDL.Signed16BitLEAudio -> mapM_ (\i -> write buf i (fromIntegral $ soundData' !! i)) [0..soundlen - 1]
         _ -> return ()
       return (),
     openDeviceUsage = SDL.ForPlayback,

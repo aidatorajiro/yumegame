@@ -1,21 +1,22 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE Arrows #-}
 
-module Sound ( ) where
+module Sound ( SoundInput, SoundCommand, SoundOutput, soundCommandIn, soundOut, initialSoundInput, soundSystem ) where
 import Control.Lens.TH
 import Control.Lens
 import FRP.Yampa
 
-data SoundState = SoundState { _myInt :: Int }
+initialSoundInput :: SoundInput
+initialSoundInput = SoundInput { _soundCommandIn = NoEvent }
 
-data SoundCommand = ExportState
+data SoundCommand = SoundCommand { _myInt :: Int }
 
-data SoundInput = SoundInput { _initialState :: SoundState, _command :: SoundCommand }
+data SoundInput = SoundInput { _soundCommandIn :: Event SoundCommand }
 $(makeLenses ''SoundInput)
 
-data SoundOutput = SoundOutput { _stateOut :: Maybe SoundState, _sound :: Int }
+data SoundOutput = SoundOutput { _soundOut :: Int }
 $(makeLenses ''SoundOutput)
 
 soundSystem :: SF SoundInput SoundOutput
 soundSystem = proc input -> do
-  returnA -< SoundOutput { _sound = 0, _stateOut = Nothing}
+  returnA -< SoundOutput { _soundOut = 0 }
