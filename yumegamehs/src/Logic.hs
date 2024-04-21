@@ -191,8 +191,7 @@ yaruzoo = proc x -> do
   let py_rotate_view_z = fromString . (\(d0, d1) ->
         "rotate_view(0, 0, " <> show (fromIntegral (d1 - d0) / 15000000 :: Double) <> ")") <$> rotaxis_z
 
-  --py_reset_1sec <- repeatedly 1 "reset_distance_of_view()" -< ()
-  py_reset_1sec <- repeatedly 1 "()" -< ()
+  py_reset_1sec <- repeatedly 1 "reset_distance_of_view()" -< ()
 
   py_save <- repeatedly 900 "save_blend()" -< ()
 
