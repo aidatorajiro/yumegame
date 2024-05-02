@@ -1,6 +1,22 @@
 import mathutils
 import struct
 import random
+import bpy
+
+RELLOC_BOTTOM_LEFT = mathutils.Vector((-0.7387151718139648, -0.37737855315208435, -0.9885141849517822))
+
+def get_relative_location_to_view(obj):
+    r = get_region_3d()
+    l = obj.location -  r.view_location
+    return r.view_rotation.inverted() @ l
+
+def obj_from_name(name):
+    return bpy.data.objects[name]
+
+def align_to_camera(obj, relloc):
+    r = get_region_3d()
+    obj.rotation_quaternion = r.view_rotation.copy()
+    obj.location = r.view_location + (r.view_rotation.copy() @ relloc)
 
 def set_bg_color(r = 1.0, g = 0.6611027121543884, b = 0.0736767128109932, a = 1.0):
     i = bpy.data.worlds["World"].node_tree.nodes["Background"].inputs[0]

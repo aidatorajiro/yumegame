@@ -193,12 +193,12 @@ yaruzoo = proc outerworld -> do
   let py_rotate_view_z = fromString . (\(d0, d1) ->
         "rotate_view(0, 0, " <> show (fromIntegral (d1 - d0) / 15000000 :: Double) <> ")") <$> rotaxis_z
 
-  py_reset_1sec <- repeatedly 1 "reset_distance_of_view()" -< ()
+  py_reset_1sec <- repeatedly 1 "reset_distance_of_view(); align_to_camera(bpy.data.objects['#text.tooltip'], RELLOC_BOTTOM_LEFT)" -< ()
 
   py_save <- repeatedly 900 "save_blend()" -< ()
 
   repeat_tenki <- (count :: SF (Event ()) (Event Int)) <<< repeatedly 30 () -< ()
-  let tenki_table = [1.0 :: Double, 0.7, 0.5, 0.3, 0.2, 0.1, 0.01, 0.1, 0.2, 0.3, 0.5, 0.7]
+  let tenki_table = (\x -> x ++ reverse x) [1.0 :: Double, 0.8, 0.75, 0.7, 0.5, 0.48, 0.43, 0.3, 0.2, 0.11, 0.1, 0.09, 0.04, 0.03, 0.02, 0.01, 0]
   let time_tenki = (\x -> tenki_table !! (x `mod` length tenki_table)) <$> repeat_tenki
   let py_tenki = (\x -> fromString $ "set_bg_strength(" <> show x <> ")") <$> time_tenki
 
