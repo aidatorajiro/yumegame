@@ -2,6 +2,17 @@ import mathutils
 import struct
 import random
 
+def set_bg_color(r = 1.0, g = 0.6611027121543884, b = 0.0736767128109932, a = 1.0):
+    i = bpy.data.worlds["World"].node_tree.nodes["Background"].inputs[0]
+    if isinstance(i, bpy.types.NodeSocketColor) and i.type == 'RGBA':
+        i,default_value[0] = r
+        i,default_value[1] = g
+        i,default_value[2] = b
+        i,default_value[3] = a
+
+def set_bg_strength(s):
+    bpy.data.worlds["World"].node_tree.nodes["Background"].inputs[1].default_value = s
+
 def debugprint(x):
     print(x)
 

@@ -32,6 +32,9 @@ import GHC.Num (Natural(NB))
 import qualified System.Info as SI
 import qualified Data.String as S
 
+data WorldState = WorldState { _someInt :: Int, _someText :: String }
+$(makeLenses ''WorldState)
+
 data Outerworld = Outerworld { _scriptReturns :: [(Int, S.ByteString)], _sdlEvents :: [SDL.Event], _incomingMessage :: [S.ByteString] }
 $(makeLenses ''Outerworld)
 
@@ -143,11 +146,11 @@ rotaxisZPreset = if SI.os == "mingw32" then (5, 4) else (5, 2)
 
 -- | Main logic of the game
 yaruzoo :: SF Outerworld Innerworld
-yaruzoo = proc x -> do
+yaruzoo = proc outerworld -> do
   -- fetch outer world values
   t <- time -< ()
-  let sdlEvs = SDL.eventPayload <$> (x ^. sdlEvents)
-  let incoming = x ^. incomingMessage
+  let sdlEvs = SDL.eventPayload <$> (outerworld ^. sdlEvents)
+  let incoming = outerworld ^. incomingMessage
   let move_coeff = 4
 
   -- y btn process
@@ -194,12 +197,17 @@ yaruzoo = proc x -> do
 
   py_save <- repeatedly 900 "save_blend()" -< ()
 
+  repeat_tenki <- (count :: SF (Event ()) (Event Int)) <<< repeatedly 30 () -< ()
+  let tenki_table = [1.0 :: Double, 0.7, 0.5, 0.3, 0.2, 0.1, 0.01, 0.1, 0.2, 0.3, 0.5, 0.7]
+  let time_tenki = (\x -> tenki_table !! (x `mod` length tenki_table)) <$> repeat_tenki
+  let py_tenki = (\x -> fromString $ "set_bg_strength(" <> show x <> ")") <$> time_tenki
+
   -- let py_debug = if null sdlEvs then NoEvent else Event ("debugprint('''" <> S.fromString (show sdlEvs) <> "''')")
   let py_debug = NoEvent
 
   -- output results
   py_reload <- now reloadScript -< ()
-  let scr = catEvents [py_debug, py_torch, py_reload, py_move_view, py_rotate_view, py_rotate_view_z, py_reset_1sec, py_move_view_z]
+  let scr = catEvents [py_tenki, py_debug, py_torch, py_reload, py_move_view, py_rotate_view, py_rotate_view_z, py_reset_1sec, py_move_view_z]
   returnA -< Innerworld {
     _script = case scr of
       NoEvent -> []
