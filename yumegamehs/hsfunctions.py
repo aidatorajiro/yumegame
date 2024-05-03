@@ -5,6 +5,9 @@ import bpy
 
 RELLOC_BOTTOM_LEFT = mathutils.Vector((-0.7387151718139648, -0.37737855315208435, -0.9885141849517822))
 
+def change_text(obj, txt):
+    obj.data.body = txt
+
 def get_relative_location_to_view(obj):
     r = get_region_3d()
     l = obj.location -  r.view_location
