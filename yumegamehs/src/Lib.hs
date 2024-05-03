@@ -29,7 +29,7 @@ import SDL (InitFlag(InitJoystick), WindowConfig (..), OpenDeviceSpec (..))
 import Control.Applicative (liftA2)
 import Control.Monad.Extra (whenMaybe)
 import qualified System.Info as SI
-import Data.Maybe (isJust, fromJust)
+import Data.Maybe (isJust, fromJust, fromMaybe)
 import qualified Data.Vector.Storable.Mutable as SM
 import Sound
 import Data.Array.MArray
@@ -62,7 +62,7 @@ startServer = do
 
   evQueue <- newTQueueIO
 
-  soundQueue <- newTBQueueIO 1 :: IO (TBQueue [Int])
+  soundQueue <- newTBQueueIO 5 :: IO (TBQueue [Int])
 
   SDL.initializeAll
 
@@ -141,8 +141,8 @@ startServer = do
     openDeviceChannels = SDL.Mandate SDL.Stereo,
     openDeviceSamples = fromIntegral soundlen,
     openDeviceCallback = \audiotype buf -> do
-      soundData <- atomically (flushTBQueue soundQueue)
-      let soundData' = if null soundData then replicate (soundlen * 2) 0 else head soundData
+      soundData <- atomically (tryReadTBQueue soundQueue)
+      let soundData' = fromMaybe (replicate (soundlen * 2) 0) soundData
       case audiotype of
         SDL.Signed16BitLEAudio -> do
           mapM_ (\i -> SM.write buf i (fromIntegral $ soundData' !! i)) [0..soundlen * 2 - 1]

@@ -32,6 +32,7 @@ import GHC.Num (Natural(NB))
 import qualified System.Info as SI
 import Todo
 import qualified Data.Text.Encoding as T
+import SDL (EventPayload)
 
 data WorldState = WorldState { _someInt :: Int, _someText :: String }
 $(makeLenses ''WorldState)
@@ -146,6 +147,11 @@ rotaxisXYPreset = if SI.os == "mingw32" then (2, 3) else (3, 4)
 rotaxisZPreset :: (Word8, Word8)
 rotaxisZPreset = if SI.os == "mingw32" then (5, 4) else (5, 2)
 
+getBtnEv :: Int32 -> Word8 -> [EventPayload] -> Event Int
+getBtnEv a b sdlEvs = case mapMaybe (getJoyBtnValueFor a b) sdlEvs of
+                  [] -> NoEvent
+                  y:ys -> Event y
+
 -- | Main logic of the game
 yaruzoo :: SF Outerworld Innerworld
 yaruzoo = proc outerworld -> do
@@ -156,9 +162,8 @@ yaruzoo = proc outerworld -> do
   let move_coeff = 4
 
   -- y btn process
-  let btn_y = case mapMaybe (getJoyBtnValueFor 0 3) sdlEvs of
-                  [] -> NoEvent
-                  y:ys -> if y == 1 then Event y else NoEvent
+  let btn_y = getBtnEv 0 3 sdlEvs
+  let btn_z = getBtnEv 0 4 sdlEvs
 
   let py_torch = fmap (const "place_torch_around();") btn_y
 

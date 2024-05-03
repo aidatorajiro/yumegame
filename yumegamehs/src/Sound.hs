@@ -21,12 +21,23 @@ $(makeLenses ''SoundOutput)
 noiseTest :: SF () Double
 noiseTest = noise (mkStdGen 21722)
 
+sinWave :: Double -> Double -> Time -> Double
+sinWave f a t =  sin (t * (2 * pi) * f) * a
+
+combinedSinWave :: [(Double, Double)] -> Time -> Double
+combinedSinWave arry t = sum ((\x -> uncurry sinWave x t) <$> arry)
+
+delayImpulse :: Time -> SF () Double
+delayImpulse d = proc _ -> do
+  t <- time -< ()
+  td <- delay d 0 -< t
+  returnA -< (if t > d + pi then 0 else (sin td ** 2) :: Double)
+
 soundSystem :: SF SoundInput SoundOutput
 soundSystem = proc input -> do
   t <- time -< ()
-  td <- delay 3 0 -< t
-  let n1 = sin (t * (2 * pi) * 336) * 3000
-  let n2 = sin (t * (2 * pi) * 450) * 3500
-  let n3 = sin (t * (2 * pi) * 150) * 3500
-  let n = (n1 + n2 + n3) * (if t > 3 + pi then 0 else (sin td ** 2) :: Double)
-  returnA -< SoundOutput { _soundOutL = floor n, _soundOutR = floor n }
+  imp1 <- delayImpulse 3 -< ()
+  let n1 = combinedSinWave [(336, 3000), (450, 3500), (150, 3500)] t * imp1
+  imp2 <- delayImpulse 5 -< ()
+  let n2 = combinedSinWave [(510, 2000), (250, 4200), (400, 3000)] t * imp2
+  returnA -< SoundOutput { _soundOutL = floor n1, _soundOutR = floor n2 }
