@@ -163,8 +163,9 @@ myStateSF = proc (outerworld, worldstate) -> do
   let incoming = outerworld ^. incomingMessage
   let move_coeff = 4
 
-  -- y btn process
+  -- btn process
   let btn_y = getBtnEv 0 3 sdlEvs
+  let btn_x = getBtnEv 0 2 sdlEvs
   let btn_b = getBtnEv 0 1 sdlEvs
 
   let state_zoomfit = if btn_b == Event 0 then not (worldstate ^. zoomFitDisabled) else worldstate ^. zoomFitDisabled
@@ -207,7 +208,7 @@ myStateSF = proc (outerworld, worldstate) -> do
   py_reset_1sec <- repeatedly 1 "reset_distance_of_view();" -< ()
   let py_reset_1sec' = if worldstate ^. zoomFitDisabled then NoEvent else py_reset_1sec
 
-  let py_tooltip = "align_to_camera(bpy.data.objects['#text.tooltip'], RELLOC_BOTTOM_LEFT);"
+  let py_tooltip = "align_to_camera(bpy.data.objects['#text.tooltip'], RELLOC_BOTTOM_LEFT);" <$ btn_x
 
   py_save <- repeatedly 900 ("save_blend();" :: String) -< ()
 
@@ -218,11 +219,11 @@ myStateSF = proc (outerworld, worldstate) -> do
 
   let py_debug = fromString <$> if null sdlEvs then NoEvent else Event ("debugprint('''" <> show sdlEvs <> "''')")
 
-  let py_move_events = (<>py_tooltip) . S.concat <$> catEvents [py_move_view, py_rotate_view, py_rotate_view_z, py_move_view_z]
+  let py_move_events = S.concat <$> catEvents [py_move_view, py_rotate_view, py_rotate_view_z, py_move_view_z]
 
   -- output results
   py_reload <- now reloadScript -< ()
-  let scr = catEvents [py_move_events, py_tenki, py_debug, py_torch, py_reload, py_reset_1sec']
+  let scr = catEvents [py_tooltip, py_move_events, py_tenki, py_debug, py_torch, py_reload, py_reset_1sec']
   returnA -< (Innerworld {
     _script = case scr of
       NoEvent -> []
