@@ -130,7 +130,7 @@ startServer = do
               sendAll s (S.concat mes)
               threadDelay 16666
               return False)
-            yaruzoo
+            mySF
         return ()
 
   _ <- forkIO (runTCPServer (Just "127.0.0.1") "3170" talk)

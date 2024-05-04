@@ -9,7 +9,7 @@ module Logic (
       Outerworld(Outerworld),
       initialOuterworld,
       Innerworld(Innerworld),
-      yaruzoo,
+      mySF,
       scriptReturns,
       sdlEvents,
       incomingMessage,
@@ -34,8 +34,10 @@ import Todo
 import qualified Data.Text.Encoding as T
 import SDL (EventPayload)
 
-data WorldState = WorldState { _someInt :: Int, _someText :: String }
+data WorldState = WorldState { _zoomFitDisabled :: Bool }
 $(makeLenses ''WorldState)
+initialWorldState :: WorldState
+initialWorldState = WorldState { _zoomFitDisabled = False }
 
 data Outerworld = Outerworld { _scriptReturns :: [(Int, S.ByteString)], _sdlEvents :: [SDL.Event], _incomingMessage :: [S.ByteString] }
 $(makeLenses ''Outerworld)
@@ -152,9 +154,9 @@ getBtnEv a b sdlEvs = case mapMaybe (getJoyBtnValueFor a b) sdlEvs of
                   [] -> NoEvent
                   y:ys -> Event y
 
--- | Main logic of the game
-yaruzoo :: SF Outerworld Innerworld
-yaruzoo = proc outerworld -> do
+-- | Main signal function with state
+myStateSF :: SF (Outerworld, WorldState) (Innerworld, WorldState)
+myStateSF = proc (outerworld, worldstate) -> do
   -- fetch outer world values
   t <- time -< ()
   let sdlEvs = SDL.eventPayload <$> (outerworld ^. sdlEvents)
@@ -163,7 +165,9 @@ yaruzoo = proc outerworld -> do
 
   -- y btn process
   let btn_y = getBtnEv 0 3 sdlEvs
-  let btn_z = getBtnEv 0 4 sdlEvs
+  let btn_b = getBtnEv 0 1 sdlEvs
+
+  let state_zoomfit = if btn_b == Event 0 then not (worldstate ^. zoomFitDisabled) else worldstate ^. zoomFitDisabled
 
   let py_torch = fmap (const "place_torch_around();") btn_y
 
@@ -174,7 +178,7 @@ yaruzoo = proc outerworld -> do
   let movaxis = pairAbsThreshold moveaxis0 moveaxis1 commonThreshold
 
   let py_move_view = fromString . (\(d0, d1) ->
-        "move_view(" <> show (fromIntegral d0 / 15000000 * move_coeff :: Double) <> ", 0, " <> show (fromIntegral d1 / 15000000 * move_coeff:: Double) <> ");") <$> movaxis :: Event S.ByteString
+        "move_view(" <> show (fromIntegral d0 / 10000000 * move_coeff :: Double) <> ", 0, " <> show (fromIntegral d1 / 10000000 * move_coeff:: Double) <> ");") <$> movaxis :: Event S.ByteString
 
   hataxis0 <- lastOfListWithInit 0 -< mapMaybe (getJoyHatValueFor 0 0 SDL.HatDown SDL.HatCentered SDL.HatUp) sdlEvs
 
@@ -201,28 +205,34 @@ yaruzoo = proc outerworld -> do
         "rotate_view(0, 0, " <> show (fromIntegral (d1 - d0) / 15000000 :: Double) <> ");") <$> rotaxis_z
 
   py_reset_1sec <- repeatedly 1 "reset_distance_of_view();" -< ()
+  let py_reset_1sec' = if worldstate ^. zoomFitDisabled then NoEvent else py_reset_1sec
 
   let py_tooltip = "align_to_camera(bpy.data.objects['#text.tooltip'], RELLOC_BOTTOM_LEFT);"
 
-  py_save <- repeatedly 900 "save_blend();" -< ()
+  py_save <- repeatedly 900 ("save_blend();" :: String) -< ()
 
   repeat_tenki <- (count :: SF (Event ()) (Event Int)) <<< repeatedly 30 () -< ()
   let tenki_table = (\x -> x ++ reverse x) [1.0 :: Double, 0.8, 0.75, 0.7, 0.5, 0.48, 0.43, 0.3, 0.2, 0.11, 0.1, 0.09, 0.04, 0.03, 0.02, 0.01, 0]
   let time_tenki = (\x -> tenki_table !! (x `mod` length tenki_table)) <$> repeat_tenki
   let py_tenki = (\x -> fromString $ "set_bg_strength(" <> show x <> ");") <$> time_tenki
 
-  -- let py_debug = if null sdlEvs then NoEvent else Event ("debugprint('''" <> S.fromString (show sdlEvs) <> "''')")
-  let py_debug = NoEvent
+  let py_debug = fromString <$> if null sdlEvs then NoEvent else Event ("debugprint('''" <> show sdlEvs <> "''')")
 
   let py_move_events = (<>py_tooltip) . S.concat <$> catEvents [py_move_view, py_rotate_view, py_rotate_view_z, py_move_view_z]
 
   -- output results
   py_reload <- now reloadScript -< ()
-  let scr = catEvents [py_move_events, py_tenki, py_debug, py_torch, py_reload, py_reset_1sec]
-  returnA -< Innerworld {
+  let scr = catEvents [py_move_events, py_tenki, py_debug, py_torch, py_reload, py_reset_1sec']
+  returnA -< (Innerworld {
     _script = case scr of
       NoEvent -> []
       Event xs -> xs,
     _timestamp = t,
     _pingMessage = ["p"],
-    _debugPrints = [] }
+    _debugPrints = [] }, WorldState {_zoomFitDisabled = state_zoomfit})
+
+-- | Main logic of the game
+mySF :: SF Outerworld Innerworld
+mySF = proc outerworld -> do
+  a <- loopPre initialWorldState myStateSF -< outerworld
+  returnA -< a
