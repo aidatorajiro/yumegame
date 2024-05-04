@@ -5,6 +5,23 @@ import bpy
 
 RELLOC_BOTTOM_LEFT = mathutils.Vector((-0.7387151718139648, -0.37737855315208435, -0.9885141849517822))
 
+def unselect_all():
+    for x in bpy.context.view_layer.objects.selected.values():
+        x.select_set(False)
+
+def copy_obj(obj, name, copy_data=False, loc=None, ignore_name_exists=False):
+    if not name in bpy.data.objects or ignore_name_exists:
+        o = obj.copy()
+        o.name = name
+    else:
+        raise ValueError('ERROR: object name already exists')
+    if loc:
+        o.location = loc
+    if copy_data:
+        o.data = o.data.copy
+    bpy.context.collection.objects.link(o)
+    return o
+
 def change_text(obj, txt):
     obj.data.body = txt
 
@@ -39,12 +56,15 @@ def random_vector():
     offset = mathutils.Vector((random.random(), random.random(), random.random())) - mathutils.Vector((0.5, 0.5, 0.5))
     return offset
 
+def unlink_all_and_link(obj, col):
+    for x in obj.users_collection:
+        x.objects.unlink(obj)
+    col.objects.link(obj)
+
 def place_torch_around():
     r = get_region_3d()
-    offset = random_vector()
-    copy = r.view_location.copy()
-    copy += offset
-    print("place_torch_around")
+    o = copy_obj(bpy.data.objects['#template.torch'], '#torch', loc=r.view_location.copy(), ignore_name_exists=True)
+    unlink_all_and_link(o, bpy.data.collections['@ayumi'])
 
 def save_blend():
     bpy.ops.wm.save_as_mainfile(filepath=bpy.data.filepath)
@@ -69,7 +89,8 @@ def sock_send(data):
     the_socket.send(struct.pack(">Q", len(data)) + data)
 
 def reset_distance_of_view():
-    get_region_3d().view_distance = 0.1
+    if not 0.099 < get_region_3d().view_distance < 0.101:
+        get_region_3d().view_distance = 0.1
 
 def rotate_view(x, y, z):
     r = get_region_3d()

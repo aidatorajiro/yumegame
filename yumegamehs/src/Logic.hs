@@ -170,7 +170,7 @@ myStateSF = proc (outerworld, worldstate) -> do
 
   let state_zoomfit = if btn_b == Event 0 then not (worldstate ^. zoomFitDisabled) else worldstate ^. zoomFitDisabled
 
-  let py_torch = fmap (const "place_torch_around();") btn_y
+  let py_torch = if btn_y == Event 0 then Event "place_torch_around();" else NoEvent
 
   -- joy axis 0 (move)
   moveaxis0 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 (fst movaxisPreset)) sdlEvs

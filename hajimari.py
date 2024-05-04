@@ -5,12 +5,12 @@ Arch Linux: 2024-04-13
 pacman -Q | rg "^(linux|util-linux|wmctrl|xclip|xfce4-session|xfce4-terminal|blender|firefox|obs-studio)"
 
 blender 17:4.1.0-3
-firefox 124.0.2-1
-linux 6.8.5.arch1-1
+firefox 125.0.1-1
+linux 6.8.7.arch1-1
 linux-api-headers 6.7-1
 linux-firmware 20240409.1addd7dc-1
 linux-firmware-whence 20240409.1addd7dc-1
-linux-headers 6.8.5.arch1-1
+linux-headers 6.8.7.arch1-1
 obs-studio 30.1.1-1
 util-linux 2.40-2
 util-linux-libs 2.40-2
