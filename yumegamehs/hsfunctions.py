@@ -2,8 +2,53 @@ import mathutils
 import struct
 import random
 import bpy
+import bmesh
+from mathutils.bvhtree import BVHTree
 
 RELLOC_BOTTOM_LEFT = mathutils.Vector((-0.7387151718139648, -0.37737855315208435, -0.9885141849517822))
+
+boundary_table = {}
+
+def make_world_bvh(obj):
+    """
+    create bvh object adjusted to world's absolute coordinate system
+    in: object
+    out: bvh
+    """
+    if not obj.name in boundary_table:
+        o = bpy.data.objects[obj.name]
+        bm = bmesh.new()
+        bm.from_mesh(o.data)
+        bm.transform(o.matrix_world)
+        bvh = BVHTree.FromBMesh(bm)
+        boundary_table[obj.name] = bvh
+    else:
+        bvh = boundary_table[obj.name] 
+    return bvh
+
+def raycast_boundary_view(all=True, relative_positions=[mathutils.Vector((0,0,-1))]):
+    """
+    raycast vector(s) relative to the viewpoint with registered boundaries
+    in: all (Bool) check for all boundaries
+        relative_positions ([Vector]) vector(s) relative to the viewpoint
+    out: (string, raycast result) if all=False
+        or  [(string, raycast result)] if all=True
+
+        the first string is the id of collection without hashtag
+    """
+    r = get_region_3d()
+    results = []
+    for c in filter(lambda x: x.name.startswith('#'), bpy.data.collections):
+        objname = '#bound.' + c.name[1:]
+        bvh = make_world_bvh(bpy.data.objects[objname])
+        for p in relative_positions:
+            result = bvh.ray_cast(r.view_location.copy(), p @ r.view_rotation.inverted().to_matrix())
+            if result[0] is not None:
+                if all == False:
+                    return (bpy.data.objects[objname], result)
+                else:
+                    results.append((c.name[1:], result))
+    return results
 
 def unselect_all():
     for x in bpy.context.view_layer.objects.selected.values():

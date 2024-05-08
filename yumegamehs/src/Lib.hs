@@ -64,15 +64,18 @@ startServer = do
 
   soundQueue <- newTBQueueIO 5 :: IO (TBQueue [Int])
 
+  soundCommandQueue <- newTQueueIO :: IO (TQueue [SoundCommand])
+
   SDL.initializeAll
 
   _ <- forkIO $ do
     current_packet <- newArray (0, soundlen * 2 - 1) 0 :: IO (IOUArray Int Int)
     packet_idx <- newIORef (0 :: Int)
     reactimate
-      (return initialSoundInput)
+      (return [])
       (\b -> do
-          return (1 / fromIntegral soundfreq, Just initialSoundInput))
+          com <- atomically $ flushTQueue soundCommandQueue
+          return (1 / fromIntegral soundfreq, Just (concat com)))
       (\is_changed sound_out -> do
           i <- readIORef packet_idx
           writeArray current_packet i (sound_out ^. soundOutR)

@@ -1,19 +1,14 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE Arrows #-}
 
-module Sound ( SoundInput, SoundCommand, SoundOutput, soundCommandIn, soundOutL, soundOutR, initialSoundInput, soundSystem ) where
+module Sound ( SoundCommand, SoundOutput, soundOutL, soundOutR, soundSystem ) where
 import Control.Lens.TH
 import Control.Lens
 import FRP.Yampa
 import System.Random (mkStdGen)
 
-initialSoundInput :: SoundInput
-initialSoundInput = SoundInput { _soundCommandIn = NoEvent }
-
 data SoundCommand = SoundCommand { _myInt :: Int }
-
-data SoundInput = SoundInput { _soundCommandIn :: Event SoundCommand }
-$(makeLenses ''SoundInput)
+$(makeLenses ''SoundCommand)
 
 data SoundOutput = SoundOutput { _soundOutL :: Int, _soundOutR :: Int }
 $(makeLenses ''SoundOutput)
@@ -33,7 +28,7 @@ delayImpulse d = proc _ -> do
   td <- delay d 0 -< t
   returnA -< (if t > d + pi then 0 else (sin td ** 2) :: Double)
 
-soundSystem :: SF SoundInput SoundOutput
+soundSystem :: SF [SoundCommand] SoundOutput
 soundSystem = proc input -> do
   t <- time -< ()
   imp1 <- delayImpulse 3 -< ()
