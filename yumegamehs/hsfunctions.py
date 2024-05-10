@@ -1,13 +1,27 @@
+import itertools
 import mathutils
+from mathutils import *
 import struct
 import random
 import bpy
+import random
 import bmesh
 from mathutils.bvhtree import BVHTree
 
 RELLOC_BOTTOM_LEFT = mathutils.Vector((-0.7387151718139648, -0.37737855315208435, -0.9885141849517822))
 
 boundary_table = {}
+
+def reload_hsfunctions():
+    """
+    <$$>
+    """
+    import os
+    proj_path = bpy.path.abspath("//")
+    print('Reloading hsfunctions...')
+    with open(os.path.join(proj_path, "yumegamehs", "hsfunctions.py")) as f:
+        exec(f.read(), globals())
+    reset_distance_of_view()
 
 def make_world_bvh(obj):
     """
@@ -26,35 +40,85 @@ def make_world_bvh(obj):
         bvh = boundary_table[obj.name] 
     return bvh
 
-def raycast_boundary_view(all=True, relative_positions=[mathutils.Vector((0,0,-1))]):
+def find_boundary(relpos=mathutils.Vector((0,-1,0))):
     """
-    raycast vector(s) relative to the viewpoint with registered boundaries
-    in: all (Bool) check for all boundaries
+    find nearest boundary
+    """
+    r = get_region_3d()
+    casts = raycast_boundary_view(relative_positions=[relpos], origin_diff=mathutils.Vector((0, 0.25, 0)))
+    return max(
+            itertools.chain(*[[(x[0], y[0][0]) for y in x[1]] for x in casts])
+            , key=lambda x: (x[1] - r.view_location).length
+        )[0]
+
+def raycast_view(obj, all=True, relative_positions=[mathutils.Vector((0,0,-1))], origin_diff=mathutils.Vector((0, 0, 0))):
+    """
+    raycast vector(s) that is/are relative to the viewpoint against a specified object
+    in: obj (Object) object to be raycasted
+        all (Bool) check for all boundaries
         relative_positions ([Vector]) vector(s) relative to the viewpoint
-    out: (string, raycast result) if all=False
-        or  [(string, raycast result)] if all=True
+    out: (raycast result, matched relative position) if all=False
+        or  [(raycast result, matched relative position)] if all=True
 
         the first string is the id of collection without hashtag
     """
     r = get_region_3d()
     results = []
+    bvh = make_world_bvh(obj)
+    for p in relative_positions:
+        origin = r.view_location.copy()
+        inv_mat = r.view_rotation.inverted().to_matrix()
+        origin += origin_diff @ inv_mat
+        result = bvh.ray_cast(origin, p @ inv_mat)
+        if result[0] is not None:
+            if all == False:
+                return (result, p)
+            else:
+                results.append((result, p))
+    return results
+
+def raycast_boundary_view(relative_positions=[mathutils.Vector((0,0,-1))], origin_diff=mathutils.Vector((0, 0, 0))):
+    """
+    raycast vector(s) relative to the viewpoint with registered boundaries
+    in: all (Bool) check for all boundaries
+        relative_positions ([Vector]) vector(s) relative to the viewpoint
+    out: [(string, [(raycast result, matched relative position)])] 
+        the first string is the id of collection without hashtag
+    """
+    results = []
     for c in filter(lambda x: x.name.startswith('#'), bpy.data.collections):
         objname = '#bound.' + c.name[1:]
-        bvh = make_world_bvh(bpy.data.objects[objname])
-        for p in relative_positions:
-            result = bvh.ray_cast(r.view_location.copy(), p @ r.view_rotation.inverted().to_matrix())
-            if result[0] is not None:
-                if all == False:
-                    return (bpy.data.objects[objname], result)
-                else:
-                    results.append((c.name[1:], result))
+        raycasts = raycast_view(bpy.data.objects[objname], relative_positions=relative_positions, origin_diff=origin_diff)
+        if len(raycasts) > 0:
+            results.append((c.name[1:], raycasts))
     return results
+
+def calculate_relpos(pos):
+    r = get_region_3d()
+    return (pos - r.view_location) @ r.view_rotation.to_matrix()
+
+# (0 +/- 2, -1 +/- 0, 0 +/- 2)
+def choose_point_around():
+    r = get_region_3d()
+    objname = find_boundary()
+    obj = bpy.data.objects['#main.' + objname]
+    relpos = mathutils.Vector((random.random() * 4 - 2, -1, random.random() * 4 -2))
+    origin_diff = mathutils.Vector((0, 1, 0))
+    raycast = raycast_view(obj, relative_positions=[relpos], origin_diff=origin_diff)[0]
+    origin = r.view_location.copy() + (origin_diff @ r.view_rotation.inverted().to_matrix())
+    raycast_diff = raycast[0][0] - origin
+    final_pos = origin + raycast_diff * 0.9
+    return final_pos
+
+def debug_choose_point_around():
+    r = choose_point_around()
+    copy_obj(bpy.data.objects['#template.debugsphere'], '#debugsphere', copy_data=False, loc=r, ignore_name_exists=True, collection=bpy.data.collections['@ayumi'])
 
 def unselect_all():
     for x in bpy.context.view_layer.objects.selected.values():
         x.select_set(False)
 
-def copy_obj(obj, name, copy_data=False, loc=None, ignore_name_exists=False):
+def copy_obj(obj, name, copy_data=False, loc=None, ignore_name_exists=False, collection=None):
     if not name in bpy.data.objects or ignore_name_exists:
         o = obj.copy()
         o.name = name
@@ -65,6 +129,8 @@ def copy_obj(obj, name, copy_data=False, loc=None, ignore_name_exists=False):
     if copy_data:
         o.data = o.data.copy
     bpy.context.collection.objects.link(o)
+    if collection is not None:
+        unlink_all_and_link(o, bpy.data.collections['@ayumi'])
     return o
 
 def change_text(obj, txt):
@@ -108,8 +174,7 @@ def unlink_all_and_link(obj, col):
 
 def place_torch_around():
     r = get_region_3d()
-    o = copy_obj(bpy.data.objects['#template.torch'], '#torch', loc=r.view_location.copy(), ignore_name_exists=True)
-    unlink_all_and_link(o, bpy.data.collections['@ayumi'])
+    copy_obj(bpy.data.objects['#template.torch'], '#torch', loc=r.view_location.copy(), ignore_name_exists=True, collection=bpy.data.collections['@ayumi'])
 
 def save_blend():
     bpy.ops.wm.save_as_mainfile(filepath=bpy.data.filepath)

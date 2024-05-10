@@ -179,13 +179,13 @@ myStateSF = proc (outerworld, worldstate) -> do
   let movaxis = pairAbsThreshold moveaxis0 moveaxis1 commonThreshold
 
   let py_move_view = fromString . (\(d0, d1) ->
-        "move_view(" <> show (fromIntegral d0 / 10000000 * move_coeff :: Double) <> ", 0, " <> show (fromIntegral d1 / 10000000 * move_coeff:: Double) <> ");") <$> movaxis :: Event S.ByteString
+        "move_view(" <> show (fromIntegral d0 / 7000000 * move_coeff :: Double) <> ", 0, " <> show (fromIntegral d1 / 7000000 * move_coeff:: Double) <> ");") <$> movaxis :: Event S.ByteString
 
   hataxis0 <- lastOfListWithInit 0 -< mapMaybe (getJoyHatValueFor 0 0 SDL.HatDown SDL.HatCentered SDL.HatUp) sdlEvs
 
   let py_move_view_z
         | hataxis0 == 0 = NoEvent
-        | otherwise = Event $ fromString $ "move_view(0, " <> show (fromIntegral hataxis0 / 2000 * move_coeff :: Double) <> ", 0);"
+        | otherwise = Event $ fromString $ "move_view(0, " <> show (fromIntegral hataxis0 / 1200 * move_coeff :: Double) <> ", 0);"
 
   -- joy axis 0 (rotate)
   rotaxis0 <- lastOfList -< mapMaybe (getJoyAxisValueFor 0 (fst rotaxisXYPreset)) sdlEvs
@@ -200,10 +200,10 @@ myStateSF = proc (outerworld, worldstate) -> do
   let rotaxis_xy = pairAbsThreshold rotaxis0 rotaxis1 commonThreshold
 
   let py_rotate_view = fromString . (\(d0, d1) ->
-        "rotate_view(" <> show (fromIntegral d1 / (-15000000) :: Double) <> ", " <> show (fromIntegral d0 / (-15000000) :: Double) <> ", 0);") <$> rotaxis_xy
+        "rotate_view(" <> show (fromIntegral d1 / (-10000000) :: Double) <> ", " <> show (fromIntegral d0 / (-15000000) :: Double) <> ", 0);") <$> rotaxis_xy
 
   let py_rotate_view_z = fromString . (\(d0, d1) ->
-        "rotate_view(0, 0, " <> show (fromIntegral (d1 - d0) / 15000000 :: Double) <> ");") <$> rotaxis_z
+        "rotate_view(0, 0, " <> show (fromIntegral (d1 - d0) / 10000000 :: Double) <> ");") <$> rotaxis_z
 
   py_reset_1sec <- repeatedly 1 "reset_distance_of_view();" -< ()
   let py_reset_1sec' = if worldstate ^. zoomFitDisabled then NoEvent else py_reset_1sec
