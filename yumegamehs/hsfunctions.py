@@ -14,7 +14,8 @@ boundary_table = {}
 
 def reload_hsfunctions():
     """
-    <$$>
+    <itamname>はじめのおまじない</itamname>
+    <itemdesc>おまじないとよく言われるが、そうはいっても、そこに絆を深める以上のものはあるのだろうか。結局、だれも機械の気持ちなんかわかっちゃいない。</itemdesc>
     """
     import os
     proj_path = bpy.path.abspath("//")
@@ -25,6 +26,8 @@ def reload_hsfunctions():
 
 def make_world_bvh(obj):
     """
+    <itamname>おもいけいさんはおぼえておこう</itamname>
+    <itemdesc>でも、時には無駄も悪くないのかもしれない。効率主義反対！</itemdesc>
     create bvh object adjusted to world's absolute coordinate system
     in: object
     out: bvh
@@ -42,6 +45,8 @@ def make_world_bvh(obj):
 
 def find_boundary(relpos=mathutils.Vector((0,-1,0))):
     """
+    <itamname>近国探知</itamname>
+    <itemdesc>いまどこにいるかわからない。わからないから、何をしなければいいのかわからないし、何をしてはいけないのかもわからない。でもきっと官憲はやってくる。不安。そこで、両腕（あるいは首、あるいは足、あるいはお腹、あるいは肩、脇腹、）を伸ばし伸ばし伸ばしのばばばばばばばばし続けると、国境付近の検問所に着く。</itemdesc>
     find nearest boundary
     """
     r = get_region_3d()
@@ -53,6 +58,8 @@ def find_boundary(relpos=mathutils.Vector((0,-1,0))):
 
 def raycast_view(obj, all=True, relative_positions=[mathutils.Vector((0,0,-1))], origin_diff=mathutils.Vector((0, 0, 0))):
     """
+    <itamname>光線</itamname>
+    <itemdesc>あたまから光線が降り注ぐ。あるいは眼の前から。あるいは光線を出しているのは私かもしれない。その光線を浴びると、なにかいいことが起こるかもしれないし、ひょっとしたら５億円があたるかもしれないし、悪いことが起こるかもしれない。でも知ることはできるのは一握りの人間だけで、たいてい光線を浴びせられる人は、一生知ることはできない。</itemdesc>
     raycast vector(s) that is/are relative to the viewpoint against a specified object
     in: obj (Object) object to be raycasted
         all (Bool) check for all boundaries
@@ -79,6 +86,8 @@ def raycast_view(obj, all=True, relative_positions=[mathutils.Vector((0,0,-1))],
 
 def raycast_boundary_view(relative_positions=[mathutils.Vector((0,0,-1))], origin_diff=mathutils.Vector((0, 0, 0))):
     """
+    <itamname></itamname>
+    <itemdesc></itemdesc>
     raycast vector(s) relative to the viewpoint with registered boundaries
     in: all (Bool) check for all boundaries
         relative_positions ([Vector]) vector(s) relative to the viewpoint
