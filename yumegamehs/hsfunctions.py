@@ -6,6 +6,7 @@ import random
 import bpy
 import random
 import bmesh
+import json
 from mathutils.bvhtree import BVHTree
 
 RELLOC_BOTTOM_LEFT = mathutils.Vector((-0.7387151718139648, -0.37737855315208435, -0.9885141849517822))
@@ -205,7 +206,7 @@ def move_view(x, y, z):
     r.view_location += v
 
 def sock_send(data):
-    the_socket.send(struct.pack(">Q", len(data)) + data)
+    the_socket.send(struct.pack(">Q", len(data)) + data.encode())
 
 def reset_distance_of_view():
     if not 0.099 < get_region_3d().view_distance < 0.101:

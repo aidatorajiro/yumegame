@@ -16,7 +16,8 @@ module Logic (
       script,
       pingMessage,
       timestamp,
-      debugPrints) where
+      debugPrints,
+      parseMessage) where
 
 import qualified SDL
 import qualified Data.ByteString as S
@@ -33,6 +34,10 @@ import qualified System.Info as SI
 import Todo
 import qualified Data.Text.Encoding as T
 import SDL (EventPayload)
+import Data.Binary (decode)
+import Data.ByteString.Builder (toLazyByteString)
+import Data.ByteString (fromStrict)
+import GHC.Int (Int64)
 
 data WorldState = WorldState { _zoomFitDisabled :: Bool }
 $(makeLenses ''WorldState)
@@ -154,13 +159,23 @@ getBtnEv a b sdlEvs = case mapMaybe (getJoyBtnValueFor a b) sdlEvs of
                   [] -> NoEvent
                   y:ys -> Event y
 
+-- sendRecv :: [S.ByteString] -> 
+
+parseMessage :: S.ByteString -> [S.ByteString]
+parseMessage m =
+  let n = (decode . fromStrict $ S.take 8 m) :: Int64
+      m' = S.drop 8 m
+      m'' = S.take (fromIntegral n) m'
+      m''' = S.drop (fromIntegral n) m''
+  in if S.null m then [] else m' : parseMessage m'''
+
 -- | Main signal function with state
 myStateSF :: SF (Outerworld, WorldState) (Innerworld, WorldState)
 myStateSF = proc (outerworld, worldstate) -> do
   -- fetch outer world values
   t <- time -< ()
   let sdlEvs = SDL.eventPayload <$> (outerworld ^. sdlEvents)
-  let incoming = outerworld ^. incomingMessage
+  let incoming = parseMessage $ S.concat (outerworld ^. incomingMessage)
   let move_coeff = 4
 
   -- btn process
@@ -217,13 +232,15 @@ myStateSF = proc (outerworld, worldstate) -> do
   let time_tenki = (\x -> tenki_table !! (x `mod` length tenki_table)) <$> repeat_tenki
   let py_tenki = (\x -> fromString $ "set_bg_strength(" <> show x <> ");") <$> time_tenki
 
-  let py_debug = fromString <$> if null sdlEvs then NoEvent else Event ("debugprint('''" <> show sdlEvs <> "''')")
+  let py_debug = Event ""
 
   let py_move_events = S.concat <$> catEvents [py_move_view, py_rotate_view, py_rotate_view_z, py_move_view_z]
 
+  py_send <- repeatedly 1 "sock_send(json.dumps({'type': 'mytype', 'data': 12345}))" -< ()
+
   -- output results
   py_reload <- now reloadScript -< ()
-  let scr = catEvents [py_tooltip, py_move_events, py_tenki, py_debug, py_torch, py_reload, py_reset_1sec']
+  let scr = catEvents [py_send, py_tooltip, py_move_events, py_tenki, py_debug, py_torch, py_reload, py_reset_1sec']
   returnA -< (Innerworld {
     _script = case scr of
       NoEvent -> []
