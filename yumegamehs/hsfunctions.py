@@ -138,9 +138,26 @@ def choose_point_around():
     final_pos = origin + raycast_diff * 0.9
     return final_pos
 
+def new_instance(name, location, scale, rotation, colname='@ayumi'):
+    bpy.ops.object.collection_instance_add(collection=name, align='WORLD', location=location, scale=scale, rotation=rotation)
+    for x in bpy.data.objects:
+        if x.name.startswith(name):
+            if not(len(x.users_collection) == 1 and x.users_collection[0] == bpy.data.collections[colname]):
+                unlink_all_and_link(x, bpy.data.collections[colname])
+
+def adjust_instance_offset():
+    pass
+
 def debug_choose_point_around():
     r = choose_point_around()
     copy_obj(bpy.data.objects['#template.debugsphere'], '#debugsphere', copy_data=False, loc=r, ignore_name_exists=True, collection=bpy.data.collections['@ayumi'])
+
+def debug_choose_point_around_2():
+    r = choose_point_around()
+    r1 = random.random()
+    r2 = random.random()
+    r3 = random.random()
+    new_instance('$hikarukanagu', (r.x, r.y, r.z), (1, 1, 1), (r1, r2, r3))
 
 def unselect_all():
     for x in bpy.context.view_layer.objects.selected.values():

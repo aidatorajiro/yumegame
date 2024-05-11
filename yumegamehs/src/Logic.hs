@@ -237,7 +237,8 @@ myStateSF = proc (outerworld, worldstate) -> do
   let py_tooltip = "align_to_camera(bpy.data.objects['#text.tooltip'], RELLOC_BOTTOM_LEFT);" <$ btn_x
 
   -- save every 900sec
-  py_save <- repeatedly 900 ("save_blend();" :: String) -< ()
+  -- py_save <- repeatedly 900 ("save_blend();" :: String) -< ()
+  py_pop <- repeatedly 150 "debug_choose_point_around()" -< ()
 
   -- tenki
   repeat_tenki <- (count :: SF (Event ()) (Event Int)) <<< repeatedly 30 () -< ()
@@ -254,10 +255,11 @@ myStateSF = proc (outerworld, worldstate) -> do
 
   -- combine move evts
   let py_move_events = S.concat <$> catEvents [py_move_view, py_rotate_view, py_rotate_view_z, py_move_view_z]
+  let py_pop' = fst <$> joinE py_pop py_move_events
 
   -- output results
   py_reload <- now reloadScript -< ()
-  let scr = catEvents [py_send_bounds, py_tooltip, py_move_events, py_tenki, py_debug, py_torch, py_reload, py_reset_1sec']
+  let scr = catEvents [py_pop', py_send_bounds, py_tooltip, py_move_events, py_tenki, py_debug, py_torch, py_reload, py_reset_1sec']
   returnA -< (Innerworld {
     _soundCommand = [],
     _script = case scr of
