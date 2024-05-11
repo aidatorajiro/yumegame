@@ -36,6 +36,7 @@ library
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
       Yampa
+    , aeson
     , array
     , base >=4.7 && <5
     , binary
@@ -44,6 +45,7 @@ library
     , extra
     , json
     , lens
+    , lens-aeson
     , network
     , random
     , sdl2
@@ -63,6 +65,7 @@ executable yumegamehs-exe
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       Yampa
+    , aeson
     , array
     , base >=4.7 && <5
     , binary
@@ -71,6 +74,7 @@ executable yumegamehs-exe
     , extra
     , json
     , lens
+    , lens-aeson
     , network
     , random
     , sdl2
@@ -92,6 +96,7 @@ test-suite yumegamehs-test
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       Yampa
+    , aeson
     , array
     , base >=4.7 && <5
     , binary
@@ -100,6 +105,7 @@ test-suite yumegamehs-test
     , extra
     , json
     , lens
+    , lens-aeson
     , network
     , random
     , sdl2

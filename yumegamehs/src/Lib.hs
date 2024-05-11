@@ -130,6 +130,8 @@ startServer = do
                                         & incomingMessage .~ incoming_packets)))
             (\is_changed inner -> do
               let mes = map (createMessage 1) (inner ^. script) <> map (createMessage 0) (inner ^. pingMessage)
+              let commands = inner ^. soundCommand
+              atomically $ writeTQueue soundCommandQueue commands
               sendAll s (S.concat mes)
               threadDelay 16666
               return False)

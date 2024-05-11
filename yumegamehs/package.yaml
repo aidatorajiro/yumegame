@@ -37,6 +37,8 @@ dependencies:
 - array
 - random
 - text
+- lens-aeson
+- aeson
 
 ghc-options:
 - -Wall

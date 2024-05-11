@@ -17,14 +17,15 @@ module Logic (
       pingMessage,
       timestamp,
       debugPrints,
-      parseMessage) where
+      parseMessage,
+      soundCommand) where
 
 import qualified SDL
 import qualified Data.ByteString as S
 import FRP.Yampa
 import Control.Lens.TH
 import Control.Lens
-import Data.Maybe (mapMaybe, isJust)
+import Data.Maybe (mapMaybe, isJust, fromJust)
 import Data.Word (Word8)
 import Data.Int (Int32, Int16)
 import Data.String (IsString(fromString))
@@ -39,6 +40,11 @@ import Data.ByteString.Builder (toLazyByteString)
 import Data.ByteString (fromStrict)
 import GHC.Int (Int64)
 
+import Data.Aeson.Lens
+import qualified Data.Aeson.Types as AT
+import Data.Text (Text)
+import Sound (SoundCommand)
+
 data WorldState = WorldState { _zoomFitDisabled :: Bool }
 $(makeLenses ''WorldState)
 initialWorldState :: WorldState
@@ -50,7 +56,7 @@ $(makeLenses ''Outerworld)
 initialOuterworld :: Outerworld
 initialOuterworld = Outerworld { _scriptReturns = [], _sdlEvents = [], _incomingMessage = [] }
 
-data Innerworld = Innerworld { _script :: [S.ByteString], _timestamp :: Double, _pingMessage :: [S.ByteString], _debugPrints :: [String] }
+data Innerworld = Innerworld { _script :: [S.ByteString], _timestamp :: Double, _pingMessage :: [S.ByteString], _debugPrints :: [String], _soundCommand :: [SoundCommand] }
 $(makeLenses ''Innerworld)
 
 -- | Obtains the last element from the data flow of list. If there is no such value, signals `NoEvent`.
@@ -169,6 +175,9 @@ parseMessage m =
       m''' = S.drop (fromIntegral n) m''
   in if S.null m then [] else m' : parseMessage m'''
 
+getIncoming :: Text -> [S.ByteString] -> [S.ByteString]
+getIncoming v = filter (\x -> (x ^?! key "type") == "all_bounds")
+
 -- | Main signal function with state
 myStateSF :: SF (Outerworld, WorldState) (Innerworld, WorldState)
 myStateSF = proc (outerworld, worldstate) -> do
@@ -220,28 +229,37 @@ myStateSF = proc (outerworld, worldstate) -> do
   let py_rotate_view_z = fromString . (\(d0, d1) ->
         "rotate_view(0, 0, " <> show (fromIntegral (d1 - d0) / 10000000 :: Double) <> ");") <$> rotaxis_z
 
+ -- reset distance
   py_reset_1sec <- repeatedly 1 "reset_distance_of_view();" -< ()
   let py_reset_1sec' = if worldstate ^. zoomFitDisabled then NoEvent else py_reset_1sec
 
+  -- tooltip show
   let py_tooltip = "align_to_camera(bpy.data.objects['#text.tooltip'], RELLOC_BOTTOM_LEFT);" <$ btn_x
 
+  -- save every 900sec
   py_save <- repeatedly 900 ("save_blend();" :: String) -< ()
 
+  -- tenki
   repeat_tenki <- (count :: SF (Event ()) (Event Int)) <<< repeatedly 30 () -< ()
   let tenki_table = (\x -> x ++ reverse x) [1.0 :: Double, 0.8, 0.75, 0.7, 0.5, 0.48, 0.43, 0.3, 0.2, 0.11, 0.1, 0.09, 0.04, 0.03, 0.02, 0.01, 0]
   let time_tenki = (\x -> tenki_table !! (x `mod` length tenki_table)) <$> repeat_tenki
   let py_tenki = (\x -> fromString $ "set_bg_strength(" <> show x <> ");") <$> time_tenki
 
+  -- boundary actions
+  py_send_bounds <- repeatedly 5 "sock_send({'type': 'all_bounds', 'data': find_all_boundaries()})" -< ()
+  let recv_bounds = (^?! key "data" . _Array) <$> getIncoming "all_bounds" incoming
+
+  -- debug
   let py_debug = Event ""
 
+  -- combine move evts
   let py_move_events = S.concat <$> catEvents [py_move_view, py_rotate_view, py_rotate_view_z, py_move_view_z]
-
-  py_send <- repeatedly 1 "sock_send(json.dumps({'type': 'mytype', 'data': 12345}))" -< ()
 
   -- output results
   py_reload <- now reloadScript -< ()
-  let scr = catEvents [py_send, py_tooltip, py_move_events, py_tenki, py_debug, py_torch, py_reload, py_reset_1sec']
+  let scr = catEvents [py_send_bounds, py_tooltip, py_move_events, py_tenki, py_debug, py_torch, py_reload, py_reset_1sec']
   returnA -< (Innerworld {
+    _soundCommand = [],
     _script = case scr of
       NoEvent -> []
       Event xs -> xs,

@@ -6,8 +6,16 @@ import Control.Lens.TH
 import Control.Lens
 import FRP.Yampa
 import System.Random (mkStdGen)
+import Control.Lens
+import Data.ByteString (ByteString)
+import Data.Maybe
+import Data.List
+import Control.Monad
 
-data SoundCommand = SoundCommand { _myInt :: Int }
+data SoundState = SoundState { _currentBounds :: [Int] }
+$(makeLenses ''SoundState)
+
+data SoundCommand = SoundCommand { _setCurrentBounds :: Maybe [Int] }
 $(makeLenses ''SoundCommand)
 
 data SoundOutput = SoundOutput { _soundOutL :: Int, _soundOutR :: Int }
@@ -28,11 +36,18 @@ delayImpulse d = proc _ -> do
   td <- delay d 0 -< t
   returnA -< (if t > d + pi then 0 else (sin td ** 2) :: Double)
 
-soundSystem :: SF [SoundCommand] SoundOutput
-soundSystem = proc input -> do
+soundSystemInner :: SF ([SoundCommand], SoundState) (SoundOutput, SoundState)
+soundSystemInner = proc (com, st) -> do
   t <- time -< ()
   imp1 <- delayImpulse 3 -< ()
   let n1 = combinedSinWave [(336, 3000), (450, 3500), (150, 3500)] t * imp1
   imp2 <- delayImpulse 5 -< ()
   let n2 = combinedSinWave [(510, 2000), (250, 4200), (400, 3000)] t * imp2
-  returnA -< SoundOutput { _soundOutL = floor n1, _soundOutR = floor n2 }
+  let boundDiff = join (find isJust ((^. setCurrentBounds) <$> com))
+  let newBounds = (fromMaybe (st ^. currentBounds) boundDiff)
+  returnA -< (SoundOutput { _soundOutL = floor n1, _soundOutR = floor n2 }, SoundState { _currentBounds = newBounds})
+
+soundSystem :: SF [SoundCommand] SoundOutput
+soundSystem = proc input -> do
+  so <- loopPre (SoundState { _currentBounds = []}) soundSystemInner -< input
+  returnA -< so

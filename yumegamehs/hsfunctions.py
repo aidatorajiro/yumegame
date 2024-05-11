@@ -44,18 +44,28 @@ def make_world_bvh(obj):
         bvh = boundary_table[obj.name] 
     return bvh
 
-def find_boundary(relpos=mathutils.Vector((0,-1,0))):
+def find_boundary(relpos=mathutils.Vector((0,-1, 0)), origin_diff=mathutils.Vector((0, 0.25, 0))):
     """
     <itamname>近国探知</itamname>
     <itemdesc>いまどこにいるかわからない。わからないから、何をしなければいいのかわからないし、何をしてはいけないのかもわからない。でもきっと官憲はやってくる。不安。そこで、両腕（あるいは首、あるいは足、あるいはお腹、あるいは肩、脇腹、）を伸ばし伸ばし伸ばしのばばばばばばばばし続けると、国境付近の検問所に着く。</itemdesc>
     find nearest boundary
     """
     r = get_region_3d()
-    casts = raycast_boundary_view(relative_positions=[relpos], origin_diff=mathutils.Vector((0, 0.25, 0)))
+    casts = raycast_boundary_view(relative_positions=[relpos], origin_diff=origin_diff)
     return max(
             itertools.chain(*[[(x[0], y[0][0]) for y in x[1]] for x in casts])
             , key=lambda x: (x[1] - r.view_location).length
         )[0]
+
+
+def find_all_boundaries(relpos=mathutils.Vector((0,0,-1)), origin_diff=mathutils.Vector((0, 0, 0))):
+    """
+    <itamname>近国探知・改</itamname>
+    <itemdesc></itemdesc>
+    find all boundaries in sight (specify sight angle/position difference by relpos and origin_diff
+    """
+    casts = raycast_boundary_view(relative_positions=[relpos], origin_diff=origin_diff)
+    return [c[0] for c in casts]
 
 def raycast_view(obj, all=True, relative_positions=[mathutils.Vector((0,0,-1))], origin_diff=mathutils.Vector((0, 0, 0))):
     """
@@ -85,6 +95,14 @@ def raycast_view(obj, all=True, relative_positions=[mathutils.Vector((0,0,-1))],
                 results.append((result, p))
     return results
 
+from json import JSONEncoder
+
+class MyEncoder(JSONEncoder):
+    def default(self, o):
+        if isinstance(o, mathutils.Vector):
+            return [o.x, o.y, o.z]
+        return super().default(o)
+
 def raycast_boundary_view(relative_positions=[mathutils.Vector((0,0,-1))], origin_diff=mathutils.Vector((0, 0, 0))):
     """
     <itamname></itamname>
@@ -110,7 +128,7 @@ def calculate_relpos(pos):
 # (0 +/- 2, -1 +/- 0, 0 +/- 2)
 def choose_point_around():
     r = get_region_3d()
-    objname = find_boundary()
+    objname = find_boundary(relpos=mathutils.Vector((0,-1, 0)), origin_diff=mathutils.Vector((0, 0.25, 0)))
     obj = bpy.data.objects['#main.' + objname]
     relpos = mathutils.Vector((random.random() * 4 - 2, -1, random.random() * 4 -2))
     origin_diff = mathutils.Vector((0, 1, 0))
@@ -206,7 +224,9 @@ def move_view(x, y, z):
     r.view_location += v
 
 def sock_send(data):
-    the_socket.send(struct.pack(">Q", len(data)) + data.encode())
+    d = json.dumps(data, cls=MyEncoder).encode()
+    print(d)
+    the_socket.send(struct.pack(">Q", len(d)) + d)
 
 def reset_distance_of_view():
     if not 0.099 < get_region_3d().view_distance < 0.101:
