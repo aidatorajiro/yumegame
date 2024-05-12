@@ -25,7 +25,7 @@ import qualified Data.ByteString as S
 import FRP.Yampa
 import Control.Lens.TH
 import Control.Lens
-import Data.Maybe (mapMaybe, isJust, listToMaybe, catMaybes)
+import Data.Maybe (mapMaybe, isJust, listToMaybe, catMaybes, fromJust)
 import Data.Word (Word8)
 import Data.Int (Int32, Int16)
 import Data.String (IsString(fromString))
@@ -44,7 +44,7 @@ import Data.Text (Text)
 import Sound (SoundCommand (SoundCommand, _setCurrentBounds))
 import Data.Vector (Vector, toList)
 
-data WorldState = WorldState { _zoomFitDisabled :: Bool, _voidMove :: Time, _voidCreation :: Time }
+data WorldState = WorldState { _zoomFitDisabled :: Bool, _voidMove :: Time, _voidCreation :: Time, _queuePos :: [Int], _queueRot :: [Int] }
 $(makeLenses ''WorldState)
 initialWorldState :: WorldState
 initialWorldState = WorldState { _zoomFitDisabled = False, _voidMove = 0, _voidCreation = 0 }
@@ -201,17 +201,21 @@ getDelta = proc _ -> do
   let delta = t - t_delay
   returnA -< delta
 
+sockCall :: S.ByteString -> S.ByteString -> S.ByteString
+sockCall type_id function = "sock_send({'type': '" <> type_id <> "', 'data': " <> function <> "})"
+
 -- | Main signal function with state
 myStateSF :: SF (Outerworld, WorldState) (Innerworld, WorldState)
 myStateSF = proc (outerworld, worldstate) -> do
   -- fetch outer world values
   t <- time -< ()
   delta <- getDelta -< ()
-  
+
   let sdlEvs = SDL.eventPayload <$> (outerworld ^. sdlEvents)
   let incoming = parseMessage $ S.concat (outerworld ^. incomingMessage)
-  let move_coeff = 8
-  let rotate_coeff = 1
+  let delta_vs_60 = delta / (1/60)
+  let move_coeff = 8 * delta_vs_60
+  let rotate_coeff = 1 * delta_vs_60
 
   -- btn process
   let btn_y = getBtnEv 0 3 sdlEvs
@@ -273,9 +277,12 @@ myStateSF = proc (outerworld, worldstate) -> do
   let py_tenki = (\x -> fromString $ "set_bg_strength(" <> show x <> ");") <$> time_tenki
 
   -- boundary actions
-  py_send_bounds <- repeatedly 5 "sock_send({'type': 'all_bounds', 'data': find_all_boundaries()})" -< ()
+  py_send_bounds <- repeatedly 5 $ sockCall "all_bounds" "find_all_boundaries()" -< ()
   let recv_bounds = createBoundConfig <$> listToMaybe ((^?! key "data" . _Array) <$> getIncoming "all_bounds" incoming)
-  let newVoidMove = if (worldstate ^. voidMove) <= 0 then 0 else (worldstate ^. voidMove) - delta
+  let newVoidMove
+        | isJust recv_bounds && null (fromJust recv_bounds) = 10
+        | (worldstate ^. voidMove) <= 0 = 0
+        | otherwise = (worldstate ^. voidMove) - delta
 
   -- debug
   let py_debug = NoEvent
