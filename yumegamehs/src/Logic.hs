@@ -1,11 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Arrows #-}
-{-# OPTIONS_GHC -Wno-unused-matches #-}
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE QuasiQuotes #-}
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-{-# HLINT ignore "Use lambda-case" #-}
 
 module Logic (
       Outerworld(Outerworld),
@@ -27,18 +25,16 @@ import qualified Data.ByteString as S
 import FRP.Yampa
 import Control.Lens.TH
 import Control.Lens
-import Data.Maybe (mapMaybe, isJust, fromJust, listToMaybe, catMaybes)
+import Data.Maybe (mapMaybe, isJust, listToMaybe, catMaybes)
 import Data.Word (Word8)
 import Data.Int (Int32, Int16)
 import Data.String (IsString(fromString))
 import Data.String.QQ
-import GHC.Num (Natural(NB))
 import qualified System.Info as SI
 import Todo
 import qualified Data.Text.Encoding as T
 import SDL (EventPayload)
 import Data.Binary (decode)
-import Data.ByteString.Builder (toLazyByteString)
 import Data.ByteString (fromStrict)
 import GHC.Int (Int64)
 
@@ -46,12 +42,12 @@ import Data.Aeson.Lens
 import qualified Data.Aeson.Types as AT
 import Data.Text (Text)
 import Sound (SoundCommand (SoundCommand, _setCurrentBounds))
-import Data.Vector (Vector, (!), toList)
+import Data.Vector (Vector, toList)
 
-data WorldState = WorldState { _zoomFitDisabled :: Bool, _voidMove :: Bool, _voidCreation :: Bool }
+data WorldState = WorldState { _zoomFitDisabled :: Bool, _voidMove :: Time, _voidCreation :: Time }
 $(makeLenses ''WorldState)
 initialWorldState :: WorldState
-initialWorldState = WorldState { _zoomFitDisabled = False, _voidMove = False, _voidCreation = False }
+initialWorldState = WorldState { _zoomFitDisabled = False, _voidMove = 0, _voidCreation = 0 }
 
 data Outerworld = Outerworld { _scriptReturns :: [(Int, S.ByteString)], _sdlEvents :: [SDL.Event], _incomingMessage :: [S.ByteString] }
 $(makeLenses ''Outerworld)
@@ -81,7 +77,7 @@ getJoyAxisValueFor which axis ev = case ev of
 -- | obtains button value for specific combination of controller id (`controllerID`) and button id (`buttonID`) from given SDL event `ev`.
 getJoyBtnValueFor :: Int32 -> Word8 -> SDL.EventPayload -> Maybe Int
 getJoyBtnValueFor controllerID buttonID ev = case ev of
-    SDL.JoyButtonEvent x@(SDL.JoyButtonEventData c b state) -> if b == buttonID then
+    SDL.JoyButtonEvent x@(SDL.JoyButtonEventData c b state) -> if (c == controllerID) && (b == buttonID) then
         case state of
             SDL.JoyButtonPressed -> Just 1
             SDL.JoyButtonReleased -> Just 0
@@ -144,7 +140,7 @@ commonThreshold = 2000
 -- | pick the first element of the list and emit it as an `Event`
 pickList :: [a] -> Event a
 pickList [] = NoEvent
-pickList (x:xs) = Event x
+pickList (x:_) = Event x
 
 convertHalfAxis :: SF (Event Int16, Event Int16) (Event (Int, Int))
 convertHalfAxis = proc (rotaxis2, rotaxis3) -> do
@@ -194,18 +190,28 @@ getBoundID _ = 0
 createBoundConfig :: Vector AT.Value -> [Int]
 createBoundConfig vv =
   let vv' = toList $ (\x -> case x of
-                      AT.String y -> Just $ getBoundID y
-                      _ -> Nothing) <$> vv
+                          AT.String y -> Just $ getBoundID y
+                          _ -> Nothing) <$> vv
   in catMaybes vv'
+
+getDelta :: SF () Time
+getDelta = proc _ -> do
+  t <- time -< ()
+  t_delay <- iPre (1/60) -< t
+  let delta = t - t_delay
+  returnA -< delta
 
 -- | Main signal function with state
 myStateSF :: SF (Outerworld, WorldState) (Innerworld, WorldState)
 myStateSF = proc (outerworld, worldstate) -> do
   -- fetch outer world values
   t <- time -< ()
+  delta <- getDelta -< ()
+  
   let sdlEvs = SDL.eventPayload <$> (outerworld ^. sdlEvents)
   let incoming = parseMessage $ S.concat (outerworld ^. incomingMessage)
-  let move_coeff = 4
+  let move_coeff = 8
+  let rotate_coeff = 1
 
   -- btn process
   let btn_y = getBtnEv 0 3 sdlEvs
@@ -244,10 +250,10 @@ myStateSF = proc (outerworld, worldstate) -> do
   let rotaxis_xy = pairAbsThreshold rotaxis0 rotaxis1 commonThreshold
 
   let py_rotate_view = fromString . (\(d0, d1) ->
-        "rotate_view(" <> show (fromIntegral d1 / (-10000000) :: Double) <> ", " <> show (fromIntegral d0 / (-15000000) :: Double) <> ", 0);") <$> rotaxis_xy
+        "rotate_view(" <> show (fromIntegral d1 / (-10000000) * rotate_coeff :: Double) <> ", " <> show (fromIntegral d0 / (-10000000)  * rotate_coeff :: Double) <> ", 0);") <$> rotaxis_xy
 
   let py_rotate_view_z = fromString . (\(d0, d1) ->
-        "rotate_view(0, 0, " <> show (fromIntegral (d1 - d0) / 10000000 :: Double) <> ");") <$> rotaxis_z
+        "rotate_view(0, 0, " <> show (fromIntegral (d1 - d0) / 10000000  * rotate_coeff :: Double) <> ");") <$> rotaxis_z
 
  -- reset distance
   py_reset_1sec <- repeatedly 1 "reset_distance_of_view();" -< ()
@@ -258,7 +264,7 @@ myStateSF = proc (outerworld, worldstate) -> do
 
   -- save every 900sec
   -- py_save <- repeatedly 900 ("save_blend();" :: String) -< ()
-  py_pop <- repeatedly 150 "debug_choose_point_around_2()" -< ()
+  py_pop <- repeatedly 150 "place_door()" -< ()
 
   -- tenki
   repeat_tenki <- (count :: SF (Event ()) (Event Int)) <<< repeatedly 30 () -< ()
@@ -269,10 +275,10 @@ myStateSF = proc (outerworld, worldstate) -> do
   -- boundary actions
   py_send_bounds <- repeatedly 5 "sock_send({'type': 'all_bounds', 'data': find_all_boundaries()})" -< ()
   let recv_bounds = createBoundConfig <$> listToMaybe ((^?! key "data" . _Array) <$> getIncoming "all_bounds" incoming)
-
+  let newVoidMove = if (worldstate ^. voidMove) <= 0 then 0 else (worldstate ^. voidMove) - delta
 
   -- debug
-  let py_debug = Event ""
+  let py_debug = NoEvent
 
   -- combine move evts
   let py_move_events = S.concat <$> catEvents [py_move_view, py_rotate_view, py_rotate_view_z, py_move_view_z]
@@ -288,7 +294,7 @@ myStateSF = proc (outerworld, worldstate) -> do
       Event xs -> xs,
     _timestamp = t,
     _pingMessage = ["p"],
-    _debugPrints = [] }, WorldState {_zoomFitDisabled = state_zoomfit})
+    _debugPrints = [] }, WorldState {_zoomFitDisabled = state_zoomfit, _voidCreation = 0, _voidMove = 0})
 
 -- | Main logic of the game
 mySF :: SF Outerworld Innerworld

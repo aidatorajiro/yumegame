@@ -11,11 +11,16 @@ from mathutils.bvhtree import BVHTree
 
 RELLOC_BOTTOM_LEFT = mathutils.Vector((-0.7387151718139648, -0.37737855315208435, -0.9885141849517822))
 
+
+RELPOS_ALL = [Vector((1,0,0)), Vector((-1,0,0)), Vector((0,1,0)), Vector((0,-1,0)), Vector((0, 0, 1)), Vector((0, 0, -1))]
+RELPOS_BOTTOM = [mathutils.Vector((0,-1, 0))]
+RELPOS_FORWARD = [mathutils.Vector((0,0,-1))]
+
 boundary_table = {}
 
 def reload_hsfunctions():
     """
-    <itamname>はじめのおまじない</itamname>
+    <itemname>はじめのおまじない</itemname>
     <itemdesc>おまじないとよく言われるが、そうはいっても、そこに絆を深める以上のものはあるのだろうか。結局、だれも機械の気持ちなんかわかっちゃいない。</itemdesc>
     """
     import os
@@ -27,7 +32,7 @@ def reload_hsfunctions():
 
 def make_world_bvh(obj):
     """
-    <itamname>おもいけいさんはおぼえておこう</itamname>
+    <itemname>おもいけいさんはおぼえておこう</itemname>
     <itemdesc>でも、時には無駄も悪くないのかもしれない。効率主義反対！</itemdesc>
     create bvh object adjusted to world's absolute coordinate system
     in: object
@@ -44,32 +49,34 @@ def make_world_bvh(obj):
         bvh = boundary_table[obj.name] 
     return bvh
 
-def find_boundary(relpos=mathutils.Vector((0,-1, 0)), origin_diff=mathutils.Vector((0, 0.25, 0))):
+def find_boundary(relpos=RELPOS_BOTTOM, origin_diff=mathutils.Vector((0, 0.25, 0))):
     """
-    <itamname>近国探知</itamname>
+    <itemname>近国探知</itemname>
     <itemdesc>いまどこにいるかわからない。わからないから、何をしなければいいのかわからないし、何をしてはいけないのかもわからない。でもきっと官憲はやってくる。不安。そこで、両腕（あるいは首、あるいは足、あるいはお腹、あるいは肩、脇腹、）を伸ばし伸ばし伸ばしのばばばばばばばばし続けると、国境付近の検問所に着く。</itemdesc>
     find nearest boundary
     """
     r = get_region_3d()
-    casts = raycast_boundary_view(relative_positions=[relpos], origin_diff=origin_diff)
+    casts = raycast_boundary_view(relative_positions=relpos, origin_diff=origin_diff)
     return max(
             itertools.chain(*[[(x[0], y[0][0]) for y in x[1]] for x in casts])
             , key=lambda x: (x[1] - r.view_location).length
         )[0]
 
-
-def find_all_boundaries(relpos=mathutils.Vector((0,0,-1)), origin_diff=mathutils.Vector((0, 0, 0))):
+def find_all_boundaries(relpos=RELPOS_FORWARD, origin_diff=mathutils.Vector((0, 0, 0))):
     """
-    <itamname>近国探知・改</itamname>
+    <itemname>近国探知・改</itemname>
     <itemdesc></itemdesc>
     find all boundaries in sight (specify sight angle/position difference by relpos and origin_diff
     """
-    casts = raycast_boundary_view(relative_positions=[relpos], origin_diff=origin_diff)
+    casts = raycast_boundary_view(relative_positions=relpos, origin_diff=origin_diff)
     return [c[0] for c in casts]
 
-def raycast_view(obj, all=True, relative_positions=[mathutils.Vector((0,0,-1))], origin_diff=mathutils.Vector((0, 0, 0))):
+def find_boundary_containing():
+    return [x[0] for x in raycast_boundary_view(RELPOS_ALL) if len(x[1]) == 6][0]
+
+def raycast_view(obj, all=True, relative_positions=RELPOS_FORWARD, origin_diff=mathutils.Vector((0, 0, 0))):
     """
-    <itamname>光線</itamname>
+    <itemname>光線</itemname>
     <itemdesc>あたまから光線が降り注ぐ。あるいは眼の前から。あるいは光線を出しているのは私かもしれない。その光線を浴びると、なにかいいことが起こるかもしれないし、ひょっとしたら５億円があたるかもしれないし、悪いことが起こるかもしれない。でも知ることはできるのは一握りの人間だけで、たいてい光線を浴びせられる人は、一生知ることはできない。</itemdesc>
     raycast vector(s) that is/are relative to the viewpoint against a specified object
     in: obj (Object) object to be raycasted
@@ -103,9 +110,9 @@ class MyEncoder(JSONEncoder):
             return [o.x, o.y, o.z]
         return super().default(o)
 
-def raycast_boundary_view(relative_positions=[mathutils.Vector((0,0,-1))], origin_diff=mathutils.Vector((0, 0, 0))):
+def raycast_boundary_view(relative_positions=RELPOS_FORWARD, origin_diff=mathutils.Vector((0, 0, 0))):
     """
-    <itamname></itamname>
+    <itemname>神社の記憶</itemname>
     <itemdesc></itemdesc>
     raycast vector(s) relative to the viewpoint with registered boundaries
     in: all (Bool) check for all boundaries
@@ -128,7 +135,7 @@ def calculate_relpos(pos):
 # (0 +/- 2, -1 +/- 0, 0 +/- 2)
 def choose_point_around():
     r = get_region_3d()
-    objname = find_boundary(relpos=mathutils.Vector((0,-1, 0)), origin_diff=mathutils.Vector((0, 0.25, 0)))
+    objname = find_boundary(relpos=[mathutils.Vector((0,-1, 0))], origin_diff=mathutils.Vector((0, 0.25, 0)))
     obj = bpy.data.objects['#main.' + objname]
     relpos = mathutils.Vector((random.random() * 4 - 2, -1, random.random() * 4 -2))
     origin_diff = mathutils.Vector((0, 1, 0))
@@ -152,7 +159,7 @@ def debug_choose_point_around():
     r = choose_point_around()
     copy_obj(bpy.data.objects['#template.debugsphere'], '#debugsphere', copy_data=False, loc=r, ignore_name_exists=True, collection=bpy.data.collections['@ayumi'])
 
-def debug_choose_point_around_2():
+def place_door():
     r = choose_point_around()
     r1 = random.random()
     r2 = random.random()

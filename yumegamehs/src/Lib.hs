@@ -62,7 +62,7 @@ startServer = do
 
   evQueue <- newTQueueIO
 
-  soundQueue <- newTBQueueIO 5 :: IO (TBQueue [Int])
+  soundQueue <- newTBQueueIO 5 :: IO (TBQueue (IOUArray Int Int))
 
   soundCommandQueue <- newTQueueIO :: IO (TQueue [SoundCommand])
 
@@ -83,7 +83,7 @@ startServer = do
           writeIORef packet_idx (i + 2)
           when (i + 2 == soundlen * 2) $ do
             writeIORef packet_idx 0
-            atomically . writeTBQueue soundQueue =<< getElems current_packet
+            atomically (writeTBQueue soundQueue current_packet)
           return False)
       soundSystem
     return ()
@@ -147,10 +147,15 @@ startServer = do
     openDeviceSamples = fromIntegral soundlen,
     openDeviceCallback = \audiotype buf -> do
       soundData <- atomically (tryReadTBQueue soundQueue)
-      let soundData' = fromMaybe (replicate (soundlen * 2) 0) soundData
       case audiotype of
         SDL.Signed16BitLEAudio -> do
-          mapM_ (\i -> SM.write buf i (fromIntegral $ soundData' !! i)) [0..soundlen * 2 - 1]
+          mapM_ (\i -> do
+              if isJust soundData then do
+                d <- readArray (fromJust soundData) i
+                SM.write buf i (fromIntegral d)
+              else do
+                SM.write buf i 0
+            ) [0..soundlen * 2 - 1]
         _ -> return ()
       return (),
     openDeviceUsage = SDL.ForPlayback,

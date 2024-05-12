@@ -41,7 +41,8 @@ soundSystemInner = proc (com, st) -> do
   imp1 <- moyamoya -< ()
   let n1 = combinedSinWave [(336, 3000), (450, 3500), (150, 3500)] t * imp1
   imp2 <- moyamoya -< ()
-  let n2 = combinedSinWave [(510, 2000), (250, 4200), (400, 3000)] t * imp2
+  imp2' <- delay 2 0 -< imp2
+  let n2 = combinedSinWave [(510, 2000), (250, 4200), (400, 3000)] t * imp2'
   let boundDiff = join (find isJust ((^. setCurrentBounds) <$> com))
   let newBounds = (fromMaybe (st ^. currentBounds) boundDiff)
   returnA -< (SoundOutput { _soundOutL = floor n1, _soundOutR = floor n2 }, SoundState { _currentBounds = newBounds})
