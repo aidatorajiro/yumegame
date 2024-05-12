@@ -1,7 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE Arrows #-}
 
-module Sound ( SoundCommand, SoundOutput, soundOutL, soundOutR, soundSystem ) where
+module Sound ( SoundCommand(..), SoundOutput, soundOutL, soundOutR, soundSystem ) where
 import Control.Lens.TH
 import Control.Lens
 import FRP.Yampa
@@ -30,18 +30,17 @@ sinWave f a t =  sin (t * (2 * pi) * f) * a
 combinedSinWave :: [(Double, Double)] -> Time -> Double
 combinedSinWave arry t = sum ((\x -> uncurry sinWave x t) <$> arry)
 
-delayImpulse :: Time -> SF () Double
-delayImpulse d = proc _ -> do
+moyamoya :: SF () Double
+moyamoya = proc _ -> do
   t <- time -< ()
-  td <- delay d 0 -< t
-  returnA -< (if t > d + pi then 0 else (sin td ** 2) :: Double)
+  returnA -< (sin t ** 2) :: Double
 
 soundSystemInner :: SF ([SoundCommand], SoundState) (SoundOutput, SoundState)
 soundSystemInner = proc (com, st) -> do
   t <- time -< ()
-  imp1 <- delayImpulse 3 -< ()
+  imp1 <- moyamoya -< ()
   let n1 = combinedSinWave [(336, 3000), (450, 3500), (150, 3500)] t * imp1
-  imp2 <- delayImpulse 5 -< ()
+  imp2 <- moyamoya -< ()
   let n2 = combinedSinWave [(510, 2000), (250, 4200), (400, 3000)] t * imp2
   let boundDiff = join (find isJust ((^. setCurrentBounds) <$> com))
   let newBounds = (fromMaybe (st ^. currentBounds) boundDiff)

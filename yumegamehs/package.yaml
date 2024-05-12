@@ -39,6 +39,7 @@ dependencies:
 - text
 - lens-aeson
 - aeson
+- vector
 
 ghc-options:
 - -Wall

@@ -4,6 +4,8 @@
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Use lambda-case" #-}
 
 module Logic (
       Outerworld(Outerworld),
@@ -25,7 +27,7 @@ import qualified Data.ByteString as S
 import FRP.Yampa
 import Control.Lens.TH
 import Control.Lens
-import Data.Maybe (mapMaybe, isJust, fromJust)
+import Data.Maybe (mapMaybe, isJust, fromJust, listToMaybe, catMaybes)
 import Data.Word (Word8)
 import Data.Int (Int32, Int16)
 import Data.String (IsString(fromString))
@@ -43,12 +45,13 @@ import GHC.Int (Int64)
 import Data.Aeson.Lens
 import qualified Data.Aeson.Types as AT
 import Data.Text (Text)
-import Sound (SoundCommand)
+import Sound (SoundCommand (SoundCommand, _setCurrentBounds))
+import Data.Vector (Vector, (!), toList)
 
-data WorldState = WorldState { _zoomFitDisabled :: Bool }
+data WorldState = WorldState { _zoomFitDisabled :: Bool, _voidMove :: Bool, _voidCreation :: Bool }
 $(makeLenses ''WorldState)
 initialWorldState :: WorldState
-initialWorldState = WorldState { _zoomFitDisabled = False }
+initialWorldState = WorldState { _zoomFitDisabled = False, _voidMove = False, _voidCreation = False }
 
 data Outerworld = Outerworld { _scriptReturns :: [(Int, S.ByteString)], _sdlEvents :: [SDL.Event], _incomingMessage :: [S.ByteString] }
 $(makeLenses ''Outerworld)
@@ -178,6 +181,23 @@ parseMessage m =
 getIncoming :: Text -> [S.ByteString] -> [S.ByteString]
 getIncoming v = filter (\x -> (x ^?! key "type") == "all_bounds")
 
+
+getBoundID :: Text -> Int
+getBoundID "kowaretukue" = 1
+getBoundID "bunkimachine" = 2
+getBoundID "kagi" = 3
+getBoundID "plastic" = 4
+getBoundID "hashi" = 5
+getBoundID "yurei" = 6
+getBoundID _ = 0
+
+createBoundConfig :: Vector AT.Value -> [Int]
+createBoundConfig vv =
+  let vv' = toList $ (\x -> case x of
+                      AT.String y -> Just $ getBoundID y
+                      _ -> Nothing) <$> vv
+  in catMaybes vv'
+
 -- | Main signal function with state
 myStateSF :: SF (Outerworld, WorldState) (Innerworld, WorldState)
 myStateSF = proc (outerworld, worldstate) -> do
@@ -238,7 +258,7 @@ myStateSF = proc (outerworld, worldstate) -> do
 
   -- save every 900sec
   -- py_save <- repeatedly 900 ("save_blend();" :: String) -< ()
-  py_pop <- repeatedly 150 "debug_choose_point_around()" -< ()
+  py_pop <- repeatedly 150 "debug_choose_point_around_2()" -< ()
 
   -- tenki
   repeat_tenki <- (count :: SF (Event ()) (Event Int)) <<< repeatedly 30 () -< ()
@@ -248,7 +268,8 @@ myStateSF = proc (outerworld, worldstate) -> do
 
   -- boundary actions
   py_send_bounds <- repeatedly 5 "sock_send({'type': 'all_bounds', 'data': find_all_boundaries()})" -< ()
-  let recv_bounds = (^?! key "data" . _Array) <$> getIncoming "all_bounds" incoming
+  let recv_bounds = createBoundConfig <$> listToMaybe ((^?! key "data" . _Array) <$> getIncoming "all_bounds" incoming)
+
 
   -- debug
   let py_debug = Event ""
@@ -261,7 +282,7 @@ myStateSF = proc (outerworld, worldstate) -> do
   py_reload <- now reloadScript -< ()
   let scr = catEvents [py_pop', py_send_bounds, py_tooltip, py_move_events, py_tenki, py_debug, py_torch, py_reload, py_reset_1sec']
   returnA -< (Innerworld {
-    _soundCommand = [],
+    _soundCommand = [SoundCommand {_setCurrentBounds = recv_bounds } | isJust recv_bounds],
     _script = case scr of
       NoEvent -> []
       Event xs -> xs,
