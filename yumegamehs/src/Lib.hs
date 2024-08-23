@@ -211,4 +211,8 @@ runTCPServer mhost port server = withSocketsDo $ do
         return sock
     loopfunc sock = forever $ do
         (conn, _peer) <- accept sock
-        void $ forkFinally (server conn) (const $ gracefulClose conn 5000)
+        void $ forkFinally (server conn) (\x -> do
+          case x of
+            Left e -> putStrLn $ "Exception: " ++ show e
+            Right _ -> return ()
+          gracefulClose conn 5000)
