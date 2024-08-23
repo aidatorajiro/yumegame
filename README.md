@@ -4,7 +4,7 @@ A game development framework that makes Blender as an asset editor and a game si
 
 ## Requirements for the development environment
 
-Linux is required. Note that only Arch Linux with XFCE4 is tested. (Devastating changes may come into some of these packages in the future especially Blender API change and Arch Linux has so-called rolling-release-system, so I'm considering a way to retain package versions (Nix or Flatpak?))
+Linux is required. Note that only Arch Linux with XFCE4 is tested. (Devastating changes may come into some of these packages in the future especially Blender API change and Arch Linux has so-called rolling-release-system and haskell version management is kinda messy, so I'm considering a way to retain package versions (Nix or Flatpak?))
 
 ```
 blender
@@ -13,7 +13,7 @@ obs studio
 wmctrl
 xclip
 xfce4
-ghcup (GHCup 0.1.22.0, GHC 9.6.4, Stack 2.15.3, HLS 2.7.0.0, cabal 3.10.2.1, GHC 9.6.4)
+ghcup (GHCup 0.1.30.0, GHC 9.6.4, Stack 3.1.1, HLS 2.7.0.0, cabal 3.10.3.0, GHC 9.6.4)
 visual studio code
 ```
 
