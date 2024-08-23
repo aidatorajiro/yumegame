@@ -43,11 +43,16 @@ import qualified Data.Aeson.Types as AT
 import Data.Text (Text)
 import Sound (SoundCommand (SoundCommand, _setCurrentBounds))
 import Data.Vector (Vector, toList)
+import Data.Aeson.KeyMap (KeyMap)
+import  qualified Data.Aeson as A
 
-data WorldState = WorldState { _zoomFitDisabled :: Bool, _voidMove :: Time, _voidCreation :: Time, _queuePos :: [Int], _queueRot :: [Int] }
+data PermanentState = PermanentState { _someData :: Int, _someData2 :: Double }
+$(makeLenses ''PermanentState)
+
+data WorldState = WorldState { _zoomFitDisabled :: Bool, _voidMove :: Time, _voidCreation :: Time, _voidPos :: Maybe (Double, Double, Double), _voidRot :: Maybe (Double, Double, Double, Double) }
 $(makeLenses ''WorldState)
 initialWorldState :: WorldState
-initialWorldState = WorldState { _zoomFitDisabled = False, _voidMove = 0, _voidCreation = 0 }
+initialWorldState = WorldState { _zoomFitDisabled = False, _voidMove = 0, _voidCreation = 0, _voidPos = Nothing, _voidRot = Nothing }
 
 data Outerworld = Outerworld { _scriptReturns :: [(Int, S.ByteString)], _sdlEvents :: [SDL.Event], _incomingMessage :: [S.ByteString] }
 $(makeLenses ''Outerworld)
@@ -175,8 +180,7 @@ parseMessage m =
   in if S.null m then [] else m' : parseMessage m'''
 
 getIncoming :: Text -> [S.ByteString] -> [S.ByteString]
-getIncoming v = filter (\x -> (x ^?! key "type") == "all_bounds")
-
+getIncoming v = filter (\x -> (x ^?! key "type" . _JSON) == v)
 
 getBoundID :: Text -> Int
 getBoundID "kowaretukue" = 1
@@ -203,6 +207,10 @@ getDelta = proc _ -> do
 
 sockCall :: S.ByteString -> S.ByteString -> S.ByteString
 sockCall type_id function = "sock_send({'type': '" <> type_id <> "', 'data': " <> function <> "})"
+
+joinMaybe :: (Maybe a, Maybe b) -> Maybe (a, b)
+joinMaybe (Just a, Just b) = Just (a, b)
+joinMaybe _ = Nothing
 
 -- | Main signal function with state
 myStateSF :: SF (Outerworld, WorldState) (Innerworld, WorldState)
@@ -277,12 +285,28 @@ myStateSF = proc (outerworld, worldstate) -> do
   let py_tenki = (\x -> fromString $ "set_bg_strength(" <> show x <> ");") <$> time_tenki
 
   -- boundary actions
+  let void_move_secs = 10
   py_send_bounds <- repeatedly 5 $ sockCall "all_bounds" "find_all_boundaries()" -< ()
   let recv_bounds = createBoundConfig <$> listToMaybe ((^?! key "data" . _Array) <$> getIncoming "all_bounds" incoming)
   let newVoidMove
-        | isJust recv_bounds && null (fromJust recv_bounds) = 10
+        | (worldstate ^. voidMove) == 0 && isJust recv_bounds && null (fromJust recv_bounds) = void_move_secs
         | (worldstate ^. voidMove) <= 0 = 0
         | otherwise = (worldstate ^. voidMove) - delta
+  let py_void_query_posrot = gate (Event (sockCall "void_posrot" "view_posrot()")) (newVoidMove == void_move_secs)
+  let void_recv_posrot = listToMaybe $ getIncoming "void_posrot" incoming
+  let py_void_query_boundpos = gate (Event (sockCall "void_boundpos" "randboundpos()")) (newVoidMove == void_move_secs)
+  let void_recv_boundpos = listToMaybe $ getIncoming "void_boundpos" incoming
+  let parsed_posrot = (\x -> x ^?! key "data" . _JSON ::  ((Double, Double, Double), (Double, Double, Double, Double))) <$> void_recv_posrot
+  let parsed_boundpos = (\x -> x ^?! key "data" . _JSON ::  (Double, Double, Double)) <$> void_recv_boundpos
+  let void_move_t = (void_move_secs - newVoidMove) / void_move_secs
+  let posrot_new = (\(((x, y, z), (a, b, c, d)), (_x, _y, _z)) -> ((
+                          x + (_x - x) * void_move_t,
+                          y + (_y - y) * void_move_t,
+                          z + (_z - z) * void_move_t), (a, b, c, d))
+        ) <$> joinMaybe (parsed_posrot, parsed_boundpos)
+  let py_void_move = case posrot_new of 
+            Just posrot -> S.toStrict <$> gate (Event ("move_view(" <> A.encode posrot <> ")")) (0 < (worldstate ^. voidMove) && (worldstate ^. voidMove) < void_move_secs)
+            Nothing -> NoEvent
 
   -- debug
   let py_debug = NoEvent
@@ -293,7 +317,7 @@ myStateSF = proc (outerworld, worldstate) -> do
 
   -- output results
   py_reload <- now reloadScript -< ()
-  let scr = catEvents [py_pop', py_send_bounds, py_tooltip, py_move_events, py_tenki, py_debug, py_torch, py_reload, py_reset_1sec']
+  let scr = catEvents [py_void_move, py_void_query_boundpos, py_void_query_posrot, py_pop', py_send_bounds, py_tooltip, py_move_events, py_tenki, py_debug, py_torch, py_reload, py_reset_1sec']
   returnA -< (Innerworld {
     _soundCommand = [SoundCommand {_setCurrentBounds = recv_bounds } | isJust recv_bounds],
     _script = case scr of
@@ -301,7 +325,7 @@ myStateSF = proc (outerworld, worldstate) -> do
       Event xs -> xs,
     _timestamp = t,
     _pingMessage = ["p"],
-    _debugPrints = [] }, WorldState {_zoomFitDisabled = state_zoomfit, _voidCreation = 0, _voidMove = 0})
+    _debugPrints = [] }, WorldState {_zoomFitDisabled = state_zoomfit, _voidCreation = 0, _voidMove = newVoidMove, _voidPos = Nothing, _voidRot = Nothing})
 
 -- | Main logic of the game
 mySF :: SF Outerworld Innerworld
