@@ -13,7 +13,7 @@ obs studio
 wmctrl
 xclip
 xfce4
-ghcup
+ghcup (GHCup 0.1.22.0, GHC 9.6.4, Stack 2.15.3, HLS 2.7.0.0, cabal 3.10.2.1, GHC 9.6.4)
 visual studio code
 ```
 
