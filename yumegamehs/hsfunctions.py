@@ -108,7 +108,15 @@ class MyEncoder(JSONEncoder):
     def default(self, o):
         if isinstance(o, mathutils.Vector):
             return [o.x, o.y, o.z]
+        if isinstance(o, mathutils.Quaternion):
+            return [o.x, o.y, o.z, o.w]
+        if isinstance(o, mathutils.Euler):
+            return [o.x, o.y, o.z, o.order]
         return super().default(o)
+
+def view_posrot():
+    r = get_region_3d()
+    return [r.view_location, r.view_rotation]
 
 def raycast_boundary_view(relative_positions=RELPOS_FORWARD, origin_diff=mathutils.Vector((0, 0, 0))):
     """
@@ -184,6 +192,16 @@ def copy_obj(obj, name, copy_data=False, loc=None, ignore_name_exists=False, col
     if collection is not None:
         unlink_all_and_link(o, bpy.data.collections['@ayumi'])
     return o
+
+def move_view(pos_and_rot):
+    print(pos_and_rot)
+    r = get_region_3d()
+    r.view_location = mathutils.Vector(pos_and_rot[0])
+    r.view_rotation = mathutils.Quaternion(pos_and_rot[1])
+
+def randboundpos():
+    c = random.choice([o for o in bpy.data.objects if o.name.startswith("#bound.")])
+    return c.location + random_vector()
 
 def change_text(obj, txt):
     obj.data.body = txt
